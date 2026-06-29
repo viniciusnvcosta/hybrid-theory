@@ -17,12 +17,16 @@ All notable changes to **CDADE** are documented here. Format follows [Keep a Cha
 - Pre-commit hooks (ruff) and GitHub Actions workflow (`just lint test`).
 - **Stage 0 (setup)**: Complete — `pyproject.toml`, `justfile`, DVC init, config skeleton, registry, CI.
 - **Stage 1 (data)**: Complete — SIVEP-Malária loader, Project Tycho v2.0 loader, CDC FluView loader, synthetic-anomaly injection, DVC stages, 50 passing tests.
-- **Stage 2 (detectors)**: Pending — 10 unsupervised detectors (9 PyOD wrappers + MCD from scratch) not yet implemented.
-- **Stage 3 (reconciliation)**: Pending — Hierarchical reconciliation module (bottom-up, MinT-shrink, EVT) not yet implemented.
+- **Stage 2 (detectors)**: Complete — 10 unsupervised detectors (9 PyOD wrappers: PCA, SOS, IF, LOF, COF, CBLOF, HBOS, KNN, OCSVM + MCD from scratch), all registered via registry, passing tests.
+- **Stage 3 (reconciliation)**: Complete — Hierarchical reconciliation module (bottom-up, MinT-shrink, EVT/GPD), summing matrix builder, coherence checks, passing tests.
 
 ### Notes
 
-- Stages 2–8 pending — see roadmap below.
+- **Stage 4 (selection)**: Pending — Dynamic ensemble selection (L3) not yet implemented.
+- **Stage 5 (ensemble)**: Pending — End-to-end orchestrator not yet implemented.
+- **Stage 6 (baselines)**: Pending — Baseline methods not yet implemented.
+- **Stage 7 (evaluation)**: Pending — Metrics and statistical tests not yet implemented.
+- **Stage 8 (ablation)**: Pending — Ablation study and reporting not yet implemented.
 
 ---
 
@@ -32,36 +36,36 @@ Each item is a tracked work unit. Checkboxes mark completion; suggested CCR rout
 
 ### Stage 0 — Project setup
 
-- [ ] `feat(setup)`: `pyproject.toml` with uv, ruff, pytest config; pin Python 3.11+ `[background]`
-- [ ] `feat(setup)`: `justfile` recipes (`setup`, `lint`, `test`, `data`, `experiment`, `stats`, `ablation`, `report`) `[background]`
-- [ ] `feat(setup)`: DVC init + remote; `data/raw` immutability guard `[background]`
-- [ ] `feat(setup)`: Hydra `configs/` skeleton (config.yaml + group dirs) `[background]`
-- [ ] `feat(setup)`: `cdade/registry.py` Factory/Registry for detectors, reconcilers, selectors `[default]`
-- [ ] `chore(ci)`: pre-commit (ruff), GitHub Actions running `just lint test` `[background]`
+- [x] `feat(setup)`: `pyproject.toml` with uv, ruff, pytest config; pin Python 3.11+ `[background]`
+- [x] `feat(setup)`: `justfile` recipes (`setup`, `lint`, `test`, `data`, `experiment`, `stats`, `ablation`, `report`) `[background]`
+- [x] `feat(setup)`: DVC init + remote; `data/raw` immutability guard `[background]`
+- [x] `feat(setup)`: Hydra `configs/` skeleton (config.yaml + group dirs) `[background]`
+- [x] `feat(setup)`: `cdade/registry.py` Factory/Registry for detectors, reconcilers, selectors `[default]`
+- [x] `chore(ci)`: pre-commit (ruff), GitHub Actions running `just lint test` `[background]`
 
 ### Stage 1 — Data layer
 
-- [ ] `feat(data)`: SIVEP-Malária loader → leaf/aggregate counts, hierarchy spec `[default]`
-- [ ] `feat(data)`: Project Tycho v2.0 loader (city → state → national) `[default]`
-- [ ] `feat(data)`: CDC FluView / ILINet loader (HHS region → national) `[default]`
-- [ ] `feat(data)`: synthetic-anomaly injection (spikes, level shifts, drifts) with ground-truth masks `[think]`
-- [ ] `feat(data)`: DVC `prepare` + `inject` stages; processed tensors cached `[background]`
-- [ ] `test(data)`: shape, coherence (leaves sum to aggregate), no-NaN, seed-stability `[default]`
+- [x] `feat(data)`: SIVEP-Malária loader → leaf/aggregate counts, hierarchy spec `[default]`
+- [x] `feat(data)`: Project Tycho v2.0 loader (city → state → national) `[default]`
+- [x] `feat(data)`: CDC FluView / ILINet loader (HHS region → national) `[default]`
+- [x] `feat(data)`: synthetic-anomaly injection (spikes, level shifts, drifts) with ground-truth masks `[think]`
+- [x] `feat(data)`: DVC `prepare` + `inject` stages; processed tensors cached `[background]`
+- [x] `test(data)`: shape, coherence (leaves sum to aggregate), no-NaN, seed-stability `[default]`
 
 ### Stage 2 — Base detector pool (L1)
 
-- [ ] `feat(detectors)`: registry-backed PyOD wrappers (PCA, SOS, IF, LOF, COF, CBLOF, HBOS, KNN, OCSVM) `[default]`
-- [ ] `feat(detectors)`: **MCD from scratch** (robust covariance via FastMCD; no sklearn `MinCovDet`) `[think]`
-- [ ] `feat(detectors)`: second from-scratch detector for redundancy (e.g. HBOS) `[default]`
-- [ ] `test(detectors)`: `score` monotonicity, contamination handling, parity check vs reference on toy data `[default]`
+- [x] `feat(detectors)`: registry-backed PyOD wrappers (PCA, SOS, IF, LOF, COF, CBLOF, HBOS, KNN, OCSVM) `[default]`
+- [x] `feat(detectors)`: **MCD from scratch** (robust covariance via FastMCD; no sklearn `MinCovDet`) `[think]`
+- [x] `feat(detectors)`: second from-scratch detector for redundancy (e.g. HBOS) `[default]`
+- [x] `test(detectors)`: `score` monotonicity, contamination handling, parity check vs reference on toy data `[default]`
 
 ### Stage 3 — Hierarchical reconciliation (L2)
 
-- [ ] `feat(reconciliation)`: summing matrix `S` builder from hierarchy spec `[think]`
-- [ ] `feat(reconciliation)`: bottom-up reconciler `[default]`
-- [ ] `feat(reconciliation)`: MinT-shrink `G = (S'W⁻¹S)⁻¹S'W⁻¹` with shrinkage covariance `[think]`
-- [ ] `feat(reconciliation)`: EVT/GPD residual thresholding (peaks-over-threshold) `[think]`
-- [ ] `test(reconciliation)`: coherence after reconciliation; MinT unbiasedness `S G S = S` `[think]`
+- [x] `feat(reconciliation)`: summing matrix `S` builder from hierarchy spec `[think]`
+- [x] `feat(reconciliation)`: bottom-up reconciler `[default]`
+- [x] `feat(reconciliation)`: MinT-shrink `G = (S'W⁻¹S)⁻¹S'W⁻¹` with shrinkage covariance `[think]`
+- [x] `feat(reconciliation)`: EVT/GPD residual thresholding (peaks-over-threshold) `[think]`
+- [x] `test(reconciliation)`: coherence after reconciliation; MinT unbiasedness `S G S = S` `[think]`
 
 ### Stage 4 — Dynamic ensemble selection (L3)
 
