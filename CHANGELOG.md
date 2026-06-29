@@ -17,6 +17,8 @@ All notable changes to **CDADE** are documented here. Format follows [Keep a Cha
 - Pre-commit hooks (ruff) and GitHub Actions workflow (`just lint test`).
 - **Stage 0 (setup)**: Complete — `pyproject.toml`, `justfile`, DVC init, config skeleton, registry, CI.
 - **Stage 1 (data)**: Complete — SIVEP-Malária loader, Project Tycho v2.0 loader, CDC FluView loader, synthetic-anomaly injection, DVC stages, 50 passing tests.
+- **Stage 2 (detectors)**: Pending — 10 unsupervised detectors (9 PyOD wrappers + MCD from scratch) not yet implemented.
+- **Stage 3 (reconciliation)**: Pending — Hierarchical reconciliation module (bottom-up, MinT-shrink, EVT) not yet implemented.
 
 ### Notes
 
