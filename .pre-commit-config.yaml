@@ -1,0 +1,9 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      - id: ruff
+        args: [--fix]
+        exclude: ^eze_notebook\.py$
+      - id: ruff-format
+        exclude: ^eze_notebook\.py$

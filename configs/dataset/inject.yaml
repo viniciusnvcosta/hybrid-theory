@@ -1,0 +1,7 @@
+# @package _global_
+inject:
+  seed: 42
+  contamination: 0.05
+  spike_magnitude: 3.0      # multiplier on local std
+  level_shift_delta: 2.0    # multiplier on local std
+  drift_slope: 0.05         # fraction of series mean per step

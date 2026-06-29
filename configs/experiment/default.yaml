@@ -1,0 +1,5 @@
+# @package _global_
+experiment:
+  name: default
+  seed: 42
+  mlflow_tracking_uri: results/mlruns

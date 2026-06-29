@@ -1,0 +1,14 @@
+defaults:
+  - dataset: sivep
+  - detector: iforest
+  - reconciliation: bottom_up
+  - selection: meta_des
+  - experiment: default
+  - _self_
+
+hydra:
+  run:
+    dir: results/runs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: results/sweeps/${now:%Y-%m-%d}
+    subdir: ${hydra.job.num}

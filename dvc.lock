@@ -1,0 +1,110 @@
+schema: '2.0'
+stages:
+  prepare:
+    cmd: uv run python -m cdade.data.prepare
+    deps:
+    - path: cdade/data/prepare.py
+      hash: md5
+      md5: 2dd45e5e53586adc28924fb1e593885e
+      size: 3217
+    - path: cdade/data/sivep.py
+      hash: md5
+      md5: 1f0ff983597d589704feffa5176981ac
+      size: 4160
+    - path: cdade/data/tycho.py
+      hash: md5
+      md5: 54e8eaa6dcb532c2963929ce5b17e251
+      size: 3640
+    - path: data/raw/PA.csv
+      hash: md5
+      md5: f8d0d428a67c59da7cee3ad8c25dd67c
+      size: 6100
+    - path: data/raw/PASIVEPDailyPerHr.csv
+      hash: md5
+      md5: 64111507159c121180810afa73e43bd7
+      size: 220215
+    - path: data/raw/US.61462000/US.61462000.csv
+      hash: md5
+      md5: bb955d8c60e9b185c4dfd6e65dd3ef9e
+      size: 24609698
+    params:
+      params.yaml:
+        sivep.raw_dir: data/raw
+        tycho.raw_dir: data/raw/US.61462000
+        tycho.resample_freq: MS
+    outs:
+    - path: data/processed/hierarchy_sivep.json
+      hash: md5
+      md5: c6d1a89c241bc357b7a25db9677cb25d
+      size: 281
+    - path: data/processed/hierarchy_tycho.json
+      hash: md5
+      md5: c57ea31f9fbd4d48bfcfd99b99d8ef26
+      size: 949
+    - path: data/processed/sivep_counts.parquet
+      hash: md5
+      md5: e986b362fe5bcfaa6f78e169ea36d892
+      size: 16823
+    - path: data/processed/sivep_state.parquet
+      hash: md5
+      md5: eaa98d92333421fcfbb4bde58f4b4b8b
+      size: 3917
+    - path: data/processed/tycho_counts.parquet
+      hash: md5
+      md5: c7286ab1b8330ea7f518bbcb53a28b12
+      size: 52209
+  inject:
+    cmd: uv run python -m cdade.data.inject
+    deps:
+    - path: cdade/data/inject.py
+      hash: md5
+      md5: f69410858e101acc35d37b407f2167a8
+      size: 5602
+    - path: cdade/data/synthetic.py
+      hash: md5
+      md5: 154513e0a0855516c1dbe465c6fa8267
+      size: 5213
+    - path: data/processed/sivep_counts.parquet
+      hash: md5
+      md5: e986b362fe5bcfaa6f78e169ea36d892
+      size: 16823
+    - path: data/processed/sivep_state.parquet
+      hash: md5
+      md5: eaa98d92333421fcfbb4bde58f4b4b8b
+      size: 3917
+    - path: data/processed/tycho_counts.parquet
+      hash: md5
+      md5: c7286ab1b8330ea7f518bbcb53a28b12
+      size: 52209
+    params:
+      params.yaml:
+        inject.contamination: 0.05
+        inject.drift_slope: 0.05
+        inject.level_shift_delta: 2.0
+        inject.seed: 42
+        inject.spike_magnitude: 3.0
+    outs:
+    - path: data/injected/sivep_counts_injected.parquet
+      hash: md5
+      md5: 44238a5d20f24891767dac20cdf5bdf6
+      size: 23378
+    - path: data/injected/sivep_counts_mask.parquet
+      hash: md5
+      md5: 8d95e5517424cdf0070edcf1753be41f
+      size: 9030
+    - path: data/injected/sivep_state_injected.parquet
+      hash: md5
+      md5: 11d0b40d90747dedf8eec03ac7720f09
+      size: 4017
+    - path: data/injected/sivep_state_mask.parquet
+      hash: md5
+      md5: b8a09d2a067224e045da1be0e55e755f
+      size: 3089
+    - path: data/injected/tycho_counts_injected.parquet
+      hash: md5
+      md5: 90f0737c40144f493b72bfea0d6c2d5c
+      size: 413769
+    - path: data/injected/tycho_counts_mask.parquet
+      hash: md5
+      md5: 2af3dca102638c5e5dcaee5f65835f67
+      size: 34308

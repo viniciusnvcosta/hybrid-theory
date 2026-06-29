@@ -1,0 +1,9 @@
+# @package _global_
+dataset:
+  name: tycho
+  raw_dir: data/raw/US.61462000
+  processed_dir: data/processed
+  filename: US.61462000.csv
+  disease_snomed: "61462000"
+  resample_freq: MS   # month-start
+  seed: 42

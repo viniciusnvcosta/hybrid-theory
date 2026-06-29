@@ -1,0 +1,21 @@
+# @package _global_
+dataset:
+  name: sivep
+  raw_dir: data/raw
+  processed_dir: data/processed
+  state: PA
+  leaves:
+    - ARAGUAIA
+    - BAIXO AMAZONAS
+    - CARAJAS
+    - LAGO DE TUCURUI
+    - MARAJO I
+    - MARAJO II
+    - METROPOLITANA I
+    - METROPOLITANA II
+    - METROPOLITANA III
+    - RIO CAETES
+    - TAPAJOS
+    - TOCANTINS
+    - XINGU
+  seed: 42

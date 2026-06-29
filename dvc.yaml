@@ -1,0 +1,94 @@
+vars:
+  - params.yaml
+
+stages:
+  prepare:
+    cmd: uv run python -m cdade.data.prepare
+    deps:
+      - data/raw/PA.csv
+      - data/raw/PASIVEPDailyPerHr.csv
+      - data/raw/US.61462000/US.61462000.csv
+      - cdade/data/sivep.py
+      - cdade/data/tycho.py
+      - cdade/data/prepare.py
+    params:
+      - sivep.raw_dir
+      - tycho.raw_dir
+      - tycho.resample_freq
+    outs:
+      - data/processed/sivep_counts.parquet
+      - data/processed/sivep_state.parquet
+      - data/processed/tycho_counts.parquet
+      - data/processed/hierarchy_sivep.json
+      - data/processed/hierarchy_tycho.json
+
+  inject:
+    cmd: uv run python -m cdade.data.inject
+    deps:
+      - data/processed/sivep_counts.parquet
+      - data/processed/sivep_state.parquet
+      - data/processed/tycho_counts.parquet
+      - cdade/data/synthetic.py
+      - cdade/data/inject.py
+    params:
+      - inject.seed
+      - inject.contamination
+      - inject.spike_magnitude
+      - inject.level_shift_delta
+      - inject.drift_slope
+    outs:
+      - data/injected/sivep_counts_injected.parquet
+      - data/injected/sivep_counts_mask.parquet
+      - data/injected/sivep_state_injected.parquet
+      - data/injected/sivep_state_mask.parquet
+      - data/injected/tycho_counts_injected.parquet
+      - data/injected/tycho_counts_mask.parquet
+
+  detect:
+    cmd: uv run python -m cdade.detectors.run_detect
+    deps:
+      - cdade/detectors
+      - cdade/registry.py
+      - configs
+      - data/injected
+    outs:
+      - results/detectors
+
+  reconcile:
+    cmd: uv run python -m cdade.reconciliation.run_reconcile
+    deps:
+      - cdade/reconciliation
+      - configs
+      - results/detectors
+    outs:
+      - results/reconciliation
+
+  select:
+    cmd: uv run python -m cdade.selection.run_select
+    deps:
+      - cdade/selection
+      - configs
+      - results/reconciliation
+    outs:
+      - results/selection
+
+  evaluate:
+    cmd: uv run python -m cdade.evaluation.run_evaluate
+    deps:
+      - cdade/evaluation
+      - configs
+      - results/selection
+      - data/injected
+    metrics:
+      - results/metrics.json:
+          cache: false
+    outs:
+      - results/evaluation
+
+  stats:
+    cmd: uv run python -m cdade.evaluation.stats
+    deps:
+      - cdade/evaluation/stats.py
+      - results/metrics.json
+    outs:
+      - results/stats

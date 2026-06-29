@@ -1,0 +1,28 @@
+sivep:
+  raw_dir: data/raw
+  regions:
+    - ARAGUAIA
+    - BAIXO AMAZONAS
+    - CARAJAS
+    - LAGO DE TUCURUI
+    - MARAJO I
+    - MARAJO II
+    - METROPOLITANA I
+    - METROPOLITANA II
+    - METROPOLITANA III
+    - RIO CAETES
+    - TAPAJOS
+    - TOCANTINS
+    - XINGU
+
+tycho:
+  raw_dir: data/raw/US.61462000
+  disease_snomed: "61462000"
+  resample_freq: MS
+
+inject:
+  seed: 42
+  contamination: 0.05
+  spike_magnitude: 3.0
+  level_shift_delta: 2.0
+  drift_slope: 0.05
