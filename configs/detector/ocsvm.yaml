@@ -1,0 +1,6 @@
+# @package _global_
+detector:
+  name: ocsvm
+  nu: 0.1
+  contamination: 0.05
+  random_state: 42

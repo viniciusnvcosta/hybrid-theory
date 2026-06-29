@@ -1,0 +1,6 @@
+# @package _global_
+detector:
+  name: pca
+  n_components: 0.95
+  contamination: 0.05
+  random_state: 42

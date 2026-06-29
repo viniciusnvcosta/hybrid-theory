@@ -1,0 +1,6 @@
+# @package _global_
+detector:
+  name: lof
+  n_neighbors: 20
+  contamination: 0.05
+  random_state: 42

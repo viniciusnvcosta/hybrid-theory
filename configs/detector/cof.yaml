@@ -1,0 +1,4 @@
+# @package _global_
+detector:
+  name: cof
+  contamination: 0.05
