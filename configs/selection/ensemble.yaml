@@ -1,0 +1,5 @@
+# @package _global_
+selection:
+  name: meta_des
+  window: 12
+  alpha: 0.5

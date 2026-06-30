@@ -3,14 +3,19 @@
 import json
 from pathlib import Path
 
-import hydra
 import pandas as pd
 from omegaconf import DictConfig
 
 
-@hydra.main(config_path="../configs", config_name="config", version_base="1.2")
-def main(cfg: DictConfig):
-    """Reconcile detector outputs using selected method."""
+def run_reconcile(cfg: DictConfig) -> dict:
+    """Reconcile detector outputs using selected method.
+
+    Args:
+        cfg: Hydra configuration object
+
+    Returns:
+        Dictionary containing reconciliation results
+    """
     from cdade.reconciliation import get_reconciler
 
     # Load hierarchy spec from processed data
@@ -46,6 +51,7 @@ def main(cfg: DictConfig):
     with open(output_dir / "hierarchy.json", "w") as f:
         json.dump(spec, f, indent=2)
 
-
-if __name__ == "__main__":
-    main()
+    return {
+        "coherent_scores": reconciled_leaves,
+        "reconciled_count": len(reconciled_leaves.columns),
+    }

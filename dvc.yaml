@@ -72,6 +72,19 @@ stages:
     outs:
       - results/selection
 
+  ensemble:
+    cmd: uv run python -m cdade.ensemble.run_ensemble
+    deps:
+      - cdade/ensemble
+      - configs
+      - results/selection
+      - data/injected
+    metrics:
+      - results/ensemble_metrics.json:
+          cache: false
+    outs:
+      - results/ensemble
+
   evaluate:
     cmd: uv run python -m cdade.evaluation.run_evaluate
     deps:
