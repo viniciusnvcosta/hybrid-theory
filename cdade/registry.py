@@ -76,6 +76,11 @@ def list_registered(kind: str) -> list[str]:
     return sorted(_get_registry(kind).keys())
 
 
+def list_detectors() -> list[str]:
+    """Return all registered detector names."""
+    return list_registered("detector")
+
+
 # Convenience aliases for each component family
 
 
@@ -123,3 +128,76 @@ def make(kind: str, name: str, *args: Any, **kwargs: Any) -> Any:
     """
     cls = get(kind, name)
     return cls(*args, **kwargs)
+
+
+# Baseline detector registry
+
+
+def register_baseline_detector(name: str) -> Callable[[type[T]], type[T]]:
+    """Register a baseline detector class.
+
+    Args:
+        name: Registry name for the baseline detector.
+
+    Returns:
+        The decorated class unchanged.
+    """
+    return register("baseline_detector", name)
+
+
+def get_baseline_detector(name: str) -> type:
+    """Retrieve a baseline detector class by name.
+
+    Args:
+        name: Lookup key.
+
+    Returns:
+        The registered class.
+    """
+    return get("baseline_detector", name)
+
+
+def list_baseline_detectors() -> list[str]:
+    """Return all registered baseline detector names."""
+    return sorted(list_registered("baseline_detector"))
+
+
+def register_baseline_detector(name: str) -> Callable[[type[T]], type[T]]:
+    """Register a baseline detector class.
+
+    Args:
+        name: Registry name for the baseline detector.
+
+    Returns:
+        The decorated class unchanged.
+    """
+    return register("baseline_detector", name)
+
+
+def get_baseline_detector(name: str) -> type:
+    """Retrieve a baseline detector class by name.
+
+    Args:
+        name: Lookup key.
+
+    Returns:
+        The registered class.
+    """
+    return get("baseline_detector", name)
+
+
+def list_baseline_detectors() -> list[str]:
+    """Return all registered baseline detector names."""
+    return sorted(_get_registry("baseline_detector").keys())
+
+
+def register_baseline_detector(name: str) -> Callable[[type[T]], type[T]]:
+    """Register a baseline detector class.
+
+    Args:
+        name: Registry name for the baseline detector.
+
+    Returns:
+        The decorated class unchanged.
+    """
+    return register("baseline_detector", name)
