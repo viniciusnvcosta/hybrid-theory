@@ -19,10 +19,11 @@ All notable changes to **CDADE** are documented here. Format follows [Keep a Cha
 - **Stage 1 (data)**: Complete — SIVEP-Malária loader, Project Tycho v2.0 loader, CDC FluView loader, synthetic-anomaly injection, DVC stages, 50 passing tests.
 - **Stage 2 (detectors)**: Complete — 10 unsupervised detectors (9 PyOD wrappers: PCA, SOS, IF, LOF, COF, CBLOF, HBOS, KNN, OCSVM + MCD from scratch), all registered via registry, passing tests.
 - **Stage 3 (reconciliation)**: Complete — Hierarchical reconciliation module (bottom-up, MinT-shrink, EVT/GPD), summing matrix builder, coherence checks, passing tests.
+- **Stage 4 (selection)**: Complete — Dynamic ensemble selection (L3): pseudo-label generator (majority vote, soft/hard), META-DES competence estimator, Q-statistic pairwise diversity, MetaDESSelector (competence+diversity α-blend, exhaustive+greedy-swap), NaiveTopKSelector, ADWIN/Page-Hinkley drift detector with competence reset, `run_select.py` DVC entry-point, 38 passing tests.
 
 ### Notes
 
-- **Stage 4 (selection)**: Pending — Dynamic ensemble selection (L3) not yet implemented.
+- **Stage 5 (ensemble)**: Pending — End-to-end orchestrator not yet implemented.
 - **Stage 5 (ensemble)**: Pending — End-to-end orchestrator not yet implemented.
 - **Stage 6 (baselines)**: Pending — Baseline methods not yet implemented.
 - **Stage 7 (evaluation)**: Pending — Metrics and statistical tests not yet implemented.
@@ -69,12 +70,12 @@ Each item is a tracked work unit. Checkboxes mark completion; suggested CCR rout
 
 ### Stage 4 — Dynamic ensemble selection (L3)
 
-- [ ] `feat(selection)`: pseudo-label generator (majority vote over full pool per window) `[default]`
-- [ ] `feat(selection)`: competence `C_i(w)` estimator (META-DES local accuracy) `[think]`
-- [ ] `feat(selection)`: Q-statistic diversity `Q(w)` over active members `[default]`
-- [ ] `feat(selection)`: subset selector `K*(w) = argmax[α·Ĉ_K + (1−α)·D_K]` `[think]`
-- [ ] `feat(selection)`: drift detector (ADWIN / Page-Hinkley via `river`) → competence reset `[default]`
-- [ ] `test(selection)`: window slicing, competence bounds, drift trigger fires on injected shift `[default]`
+- [x] `feat(selection)`: pseudo-label generator (majority vote over full pool per window) `[default]`
+- [x] `feat(selection)`: competence `C_i(w)` estimator (META-DES local accuracy) `[think]`
+- [x] `feat(selection)`: Q-statistic diversity `Q(w)` over active members `[default]`
+- [x] `feat(selection)`: subset selector `K*(w) = argmax[α·Ĉ_K + (1−α)·D_K]` `[think]`
+- [x] `feat(selection)`: drift detector (ADWIN / Page-Hinkley via `river`) → competence reset `[default]`
+- [x] `test(selection)`: window slicing, competence bounds, drift trigger fires on injected shift `[default]`
 
 ### Stage 5 — Ensemble orchestrator
 
