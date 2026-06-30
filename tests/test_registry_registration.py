@@ -6,13 +6,13 @@ are accessible via the registry.
 Author: CDADE project
 """
 
-import pytest
+import numpy as np
 
 from cdade.registry import (
-    register_detector,
+    _get_registry,
     get_detector,
     list_detectors,
-    _get_registry,
+    register_detector,
 )
 
 
@@ -28,6 +28,7 @@ class TestDetectorRegistry:
         @register_detector("test_detector")
         class TestDetector:
             """Test detector."""
+
             def __init__(self):
                 pass
 
@@ -46,6 +47,7 @@ class TestDetectorRegistry:
 
     def test_get_detector_by_name(self):
         """Test retrieving detector by name."""
+
         @register_detector("test_get_detector")
         class TestDetector:
             def fit(self, X):
@@ -83,7 +85,18 @@ class TestDetectorRegistry:
         """Test that a detector class is in the registry."""
         # Check if any known detector is registered
         # (this will tell us if the registry is working at all)
-        test_detectors = ["pca", "iforest", "lof", "mcd", "knn", "ocsvm", "hbos", "cof", "sos", "cblof"]
+        test_detectors = [
+            "pca",
+            "iforest",
+            "lof",
+            "mcd",
+            "knn",
+            "ocsvm",
+            "hbos",
+            "cof",
+            "sos",
+            "cblof",
+        ]
 
         for detector_name in test_detectors:
             try:
@@ -97,10 +110,6 @@ class TestDetectorRegistry:
 
     def test_registry_isolation(self):
         """Test that different registry types are isolated."""
-        # Get registry for different types
-        detector_registry = set(_get_registry("detector").keys())
-        reconciler_registry = set(_get_registry("reconciler").keys())
-        selector_registry = set(_get_registry("selector").keys())
 
         # Register a detector - shouldn't affect other types
         @register_detector("test_isolated")

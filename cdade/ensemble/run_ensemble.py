@@ -19,8 +19,7 @@ print("\n=== CDADE Pipeline Complete ===")
 print(f"Detectors: {results.get('detectors', {}).get('detector_count', 'N/A')}")
 print(f"Reconciled: {results.get('reconciliation', {}).get('reconciled_count', 'N/A')}")
 print(f"Selected: {results.get('selection', {}).get('selected_detectors', 'N/A')}")
-print(
-    f"Mean Competence: {results.get('selection', {}).get('competence', {}).get('mean_competence', 'N/A')}"
-)
+mean_comp = results.get("selection", {}).get("competence", {}).get("mean_competence", "N/A")
+print(f"Mean Competence: {mean_comp}")
 print(f"MLflow Run ID: {results.get('mlflow_run_id', 'N/A')}")
 print("=== End ===\n")

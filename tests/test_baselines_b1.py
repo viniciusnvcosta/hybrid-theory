@@ -8,12 +8,10 @@ Author: CDADE project
 
 import numpy as np
 import pytest
-from statsmodels.tools.sm_exceptions import PerfectSeparationWarning
 
 from cdade.baselines.farrington import (
-    FarringtonDetector,
     FarringtonConfig,
-    RegisteredFarringtonDetector,
+    FarringtonDetector,
 )
 
 
@@ -29,11 +27,7 @@ class TestFarringtonConfig:
 
     def test_custom_config(self):
         """Test custom configuration."""
-        config = FarringtonConfig(
-            z_threshold=4.0,
-            llr_threshold=0.01,
-            min_obs=8
-        )
+        config = FarringtonConfig(z_threshold=4.0, llr_threshold=0.01, min_obs=8)
         assert config.z_threshold == 4.0
         assert config.llr_threshold == 0.01
         assert config.min_obs == 8

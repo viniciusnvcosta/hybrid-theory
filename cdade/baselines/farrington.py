@@ -18,13 +18,11 @@ Author: CDADE project
 
 import logging
 from dataclasses import dataclass
-from typing import Optional, Tuple
 
 import numpy as np
-import pandas as pd
 from scipy import stats
-from statsmodels.genmod.generalized_linear_model import GLM
 from statsmodels.genmod.families import Poisson
+from statsmodels.genmod.generalized_linear_model import GLM
 from statsmodels.tools.sm_exceptions import PerfectSeparationWarning
 
 logger = logging.getLogger(__name__)
@@ -41,6 +39,7 @@ class FarringtonConfig:
         llr_threshold: Log-likelihood ratio test threshold (default: 0.05)
         min_obs: Minimum observations required for fit (default: 12)
     """
+
     seasonal_period: int = 52
     trend_period: int = 4
     z_threshold: float = 3.0
@@ -66,17 +65,17 @@ class FarringtonDetector:
         fitted: Whether model has been fitted
     """
 
-    def __init__(self, config: Optional[FarringtonConfig] = None):
+    def __init__(self, config: FarringtonConfig | None = None):
         """Initialize Farrington detector.
 
         Args:
             config: Configuration object (uses defaults if None)
         """
         self.config = config or FarringtonConfig()
-        self.model: Optional[GLM] = None
+        self.model: GLM | None = None
         self.fitted = False
 
-    def fit(self, time_series: np.ndarray, population: Optional[np.ndarray] = None) -> None:
+    def fit(self, time_series: np.ndarray, population: np.ndarray | None = None) -> None:
         """Fit Poisson regression model.
 
         Args:
@@ -101,10 +100,12 @@ class FarringtonDetector:
         # Seasonal effects (Fourier terms)
         seasonal_terms = []
         for h in range(1, min(4, self.config.seasonal_period // 2) + 1):
-            seasonal_terms.extend([
-                np.sin(2 * np.pi * h * time_idx / self.config.seasonal_period),
-                np.cos(2 * np.pi * h * time_idx / self.config.seasonal_period)
-            ])
+            seasonal_terms.extend(
+                [
+                    np.sin(2 * np.pi * h * time_idx / self.config.seasonal_period),
+                    np.cos(2 * np.pi * h * time_idx / self.config.seasonal_period),
+                ]
+            )
 
         # Trend effects (categorical or spline)
         trend_period = min(self.config.trend_period, n_obs)
@@ -117,27 +118,21 @@ class FarringtonDetector:
 
         # Fit Poisson regression
         try:
-            self.model = GLM(
-                endog=time_series,
-                exog=X,
-                family=Poisson()
-            ).fit(disp=0)
+            self.model = GLM(endog=time_series, exog=X, family=Poisson()).fit(disp=0)
         except PerfectSeparationWarning:
             logger.warning("Perfect separation in Poisson regression - fitting with regularization")
             # Fallback: use fewer features
             X_simple = time_idx
             if population is not None:
                 X_simple = np.hstack([X_simple, np.log(population).reshape(-1, 1)])
-            self.model = GLM(
-                endog=time_series,
-                exog=X_simple,
-                family=Poisson()
-            ).fit(disp=0)
+            self.model = GLM(endog=time_series, exog=X_simple, family=Poisson()).fit(disp=0)
 
         self.fitted = True
         logger.debug(f"Fitted Poisson regression with {len(self.model.params)} parameters")
 
-    def predict_expected(self, time_series: np.ndarray, population: Optional[np.ndarray] = None) -> np.ndarray:
+    def predict_expected(
+        self, time_series: np.ndarray, population: np.ndarray | None = None
+    ) -> np.ndarray:
         """Predict expected counts.
 
         Args:
@@ -159,10 +154,12 @@ class FarringtonDetector:
         # Seasonal effects
         seasonal_terms = []
         for h in range(1, min(4, self.config.seasonal_period // 2) + 1):
-            seasonal_terms.extend([
-                np.sin(2 * np.pi * h * time_idx / self.config.seasonal_period),
-                np.cos(2 * np.pi * h * time_idx / self.config.seasonal_period)
-            ])
+            seasonal_terms.extend(
+                [
+                    np.sin(2 * np.pi * h * time_idx / self.config.seasonal_period),
+                    np.cos(2 * np.pi * h * time_idx / self.config.seasonal_period),
+                ]
+            )
 
         # Trend effects
         trend_period = min(self.config.trend_period, n_obs)
@@ -179,10 +176,8 @@ class FarringtonDetector:
         return expected
 
     def predict_std_residuals(
-        self,
-        time_series: np.ndarray,
-        population: Optional[np.ndarray] = None
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        self, time_series: np.ndarray, population: np.ndarray | None = None
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Compute standardized residuals.
 
         Args:
@@ -196,7 +191,6 @@ class FarringtonDetector:
             raise ValueError("Model must be fitted before prediction")
 
         time_series = np.asarray(time_series)
-        n_obs = len(time_series)
 
         # Predict expected counts
         expected = self.predict_expected(time_series, population)
@@ -214,9 +208,7 @@ class FarringtonDetector:
         return standardized, std_dev
 
     def predict_anomaly_scores(
-        self,
-        time_series: np.ndarray,
-        population: Optional[np.ndarray] = None
+        self, time_series: np.ndarray, population: np.ndarray | None = None
     ) -> np.ndarray:
         """Compute anomaly scores.
 
@@ -233,9 +225,7 @@ class FarringtonDetector:
         return standardized
 
     def detect_anomalies(
-        self,
-        time_series: np.ndarray,
-        population: Optional[np.ndarray] = None
+        self, time_series: np.ndarray, population: np.ndarray | None = None
     ) -> np.ndarray:
         """Detect anomalies.
 
@@ -262,10 +252,7 @@ class FarringtonDetector:
         expected = self.predict_expected(time_series, population)
         expected[expected <= 0] = np.finfo(float).eps
 
-        llr = 2 * (
-            time_series * np.log(time_series / expected) -
-            (time_series - expected)
-        )
+        llr = 2 * (time_series * np.log(time_series / expected) - (time_series - expected))
 
         llr_anomalies = llr > stats.chi2.ppf(1 - self.config.llr_threshold, df=1)
 
@@ -274,7 +261,7 @@ class FarringtonDetector:
 
         return anomalies.astype(int)
 
-    def score(self, time_series: np.ndarray, population: Optional[np.ndarray] = None) -> np.ndarray:
+    def score(self, time_series: np.ndarray, population: np.ndarray | None = None) -> np.ndarray:
         """Compute anomaly score for a time series.
 
         Higher score indicates more anomalous.
@@ -306,4 +293,5 @@ def register_baseline_detector(name: str):
 @register_baseline_detector("farrington")
 class RegisteredFarringtonDetector(FarringtonDetector):
     """Farrington detector registered for baseline comparison."""
+
     pass

@@ -10,7 +10,7 @@ Provides implementations of comparison baselines for anomaly detection:
 Author: CDADE project
 """
 
-from .farrington import FarringtonDetector, FarringtonConfig, register_baseline_detector
+from .farrington import FarringtonConfig, FarringtonDetector, register_baseline_detector
 
 __all__ = [
     "FarringtonDetector",

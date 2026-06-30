@@ -11,11 +11,10 @@ Author: CDADE project
 """
 
 import logging
-from dataclasses import dataclass, fields
-from typing import Optional, Dict
+from dataclasses import dataclass
 
 import numpy as np
-from sklearn.metrics import precision_score, recall_score, f1_score
+from sklearn.metrics import f1_score, precision_score, recall_score
 
 from cdade.registry import get_detector, list_detectors
 
@@ -31,18 +30,19 @@ def create_detector(detector_cls):
     Returns:
         Detector instance.
     """
-    from dataclasses import fields, MISSING
+    from dataclasses import MISSING, fields
 
     # For detectors that use config pattern - they take 'cfg' as first parameter
     try:
         # Get the type of the cfg parameter
         import inspect
+
         sig = inspect.signature(detector_cls.__init__)
-        if 'cfg' in sig.parameters:
-            cfg_param = sig.parameters['cfg']
+        if "cfg" in sig.parameters:
+            cfg_param = sig.parameters["cfg"]
             # Check if cfg is a dataclass type
             cfg_type = cfg_param.annotation
-            if hasattr(cfg_type, '__dataclass_fields__'):
+            if hasattr(cfg_type, "__dataclass_fields__"):
                 # Create config instance with defaults
                 config_dict = {}
                 for field in fields(cfg_type):
@@ -64,6 +64,7 @@ def create_detector(detector_cls):
 @dataclass
 class SimpleDetectorConfig:
     """Simple detector configuration for testing."""
+
     contamination: float = 0.05
 
 
@@ -72,8 +73,8 @@ def evaluate_detector(
     X_train: np.ndarray,
     y_train: np.ndarray,
     X_test: np.ndarray,
-    y_test: np.ndarray
-) -> Dict[str, float]:
+    y_test: np.ndarray,
+) -> dict[str, float]:
     """Evaluate a detector on train and test sets.
 
     Args:
@@ -91,18 +92,21 @@ def evaluate_detector(
         detector_cls = get_detector(detector_name)
 
         # For detectors that use config pattern, we need to create config
-        if hasattr(detector_cls, '__dataclass_fields__') and 'cfg' in detector_cls.__dataclass_fields__:
+        if (
+            hasattr(detector_cls, "__dataclass_fields__")
+            and "cfg" in detector_cls.__dataclass_fields__
+        ):
             # Use a default config - extract from type hints or use defaults
             try:
-                from dataclasses import fields, MISSING
                 import typing
+                from dataclasses import MISSING, fields
 
                 # Try to get type hints for cfg
                 cfg_type_hints = typing.get_type_hints(detector_cls.__init__)
-                if 'cfg' in cfg_type_hints:
-                    cfg_type = cfg_type_hints['cfg']
+                if "cfg" in cfg_type_hints:
+                    cfg_type = cfg_type_hints["cfg"]
                     # Extract config fields from the type
-                    if hasattr(cfg_type, '__dataclass_fields__'):
+                    if hasattr(cfg_type, "__dataclass_fields__"):
                         config_dict = {}
                         for field in fields(cfg_type):
                             if field.default is not MISSING:
@@ -119,16 +123,17 @@ def evaluate_detector(
             except Exception as cfg_error:
                 # Fallback: use default config
                 try:
-                    from dataclasses import fields, MISSING
+                    from dataclasses import MISSING, fields
+
                     for field in fields(detector_cls):
                         if field.default is not MISSING:
                             detector = detector_cls(**{field.name: field.default})
                             break
                     else:
                         detector = detector_cls()
-                except:
+                except Exception:
                     # Last resort: raise error
-                    raise cfg_error
+                    raise cfg_error from None
         else:
             # Standard detector without config
             detector = detector_cls()
@@ -145,7 +150,6 @@ def evaluate_detector(
         # Threshold scores to binary predictions
         # Using median of train scores as threshold
         threshold = np.median(train_scores)
-        train_pred = (train_scores >= threshold).astype(int)
         test_pred = (test_scores >= threshold).astype(int)
 
         # Compute metrics (ignore labels)
@@ -157,17 +161,12 @@ def evaluate_detector(
             "precision": float(precision),
             "recall": float(recall),
             "f1": float(f1),
-            "threshold": float(threshold)
+            "threshold": float(threshold),
         }
 
     except Exception as e:
         logger.warning(f"Detector {detector_name} failed: {e}")
-        return {
-            "precision": 0.0,
-            "recall": 0.0,
-            "f1": 0.0,
-            "threshold": 0.0
-        }
+        return {"precision": 0.0, "recall": 0.0, "f1": 0.0, "threshold": 0.0}
 
 
 def find_best_detector(
@@ -175,8 +174,8 @@ def find_best_detector(
     y_train: np.ndarray,
     X_test: np.ndarray,
     y_test: np.ndarray,
-    detector_names: Optional[list[str]] = None
-) -> tuple[str, Dict[str, float]]:
+    detector_names: list[str] | None = None,
+) -> tuple[str, dict[str, float]]:
     """Find the best detector based on F1 score on validation set.
 
     Args:
@@ -197,11 +196,7 @@ def find_best_detector(
     best_metrics = {}
 
     for detector_name in detector_names:
-        metrics = evaluate_detector(
-            detector_name,
-            X_train, y_train,
-            X_test, y_test
-        )
+        metrics = evaluate_detector(detector_name, X_train, y_train, X_test, y_test)
 
         f1 = metrics["f1"]
         if f1 > best_f1:
@@ -224,15 +219,16 @@ class BestSingleDetector:
         best_metrics: Metrics for the best detector.
     """
 
-    def __init__(self, detector_names: Optional[list[str]] = None):
+    def __init__(self, detector_names: list[str] | None = None):
         """Initialize best single detector.
 
         Args:
-            detector_names: List of detector names to evaluate. If None, uses all registered detectors.
+            detector_names: List of detector names to evaluate. If None, uses all
+                registered detectors.
         """
         self.detector_names = detector_names
-        self.best_detector_name: Optional[str] = None
-        self.best_metrics: Dict[str, float] = {}
+        self.best_detector_name: str | None = None
+        self.best_metrics: dict[str, float] = {}
 
     def fit(self, X_train: np.ndarray, y_train: np.ndarray) -> None:
         """Fit the detector by finding the best one on validation data.
@@ -253,15 +249,15 @@ class BestSingleDetector:
 
         # Find best detector
         self.best_detector_name, self.best_metrics = find_best_detector(
-            X_train_split, y_train_split,
-            X_val, y_val,
-            self.detector_names
+            X_train_split, y_train_split, X_val, y_val, self.detector_names
         )
 
         logger.info(f"Selected best detector: {self.best_detector_name}")
-        logger.info(f"Validation metrics: F1={self.best_metrics['f1']:.4f}, "
-                   f"Precision={self.best_metrics['precision']:.4f}, "
-                   f"Recall={self.best_metrics['recall']:.4f}")
+        logger.info(
+            f"Validation metrics: F1={self.best_metrics['f1']:.4f}, "
+            f"Precision={self.best_metrics['precision']:.4f}, "
+            f"Recall={self.best_metrics['recall']:.4f}"
+        )
 
     def score(self, X_test: np.ndarray) -> np.ndarray:
         """Compute anomaly scores using the best detector.
@@ -321,4 +317,5 @@ def register_baseline_detector(name: str):
 @register_baseline_detector("single_best")
 class RegisteredBestSingleDetector(BestSingleDetector):
     """Best single detector registered for baseline comparison."""
+
     pass

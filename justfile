@@ -48,6 +48,11 @@ test *args:
 cov:
     uv run pytest --cov={{package}} --cov-report=term-missing
 
+# Full CI gate: lint then test (mirrors pre-commit + pytest)
+ci:
+    just lint
+    just test
+
 # Guardrail: DVC stages must not produce data/raw outputs.
 raw-guard:
     @if [ -f dvc.yaml ] && grep -nE '^[[:space:]]*-[[:space:]]+data/raw' dvc.yaml; then \

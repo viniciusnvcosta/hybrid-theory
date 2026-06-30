@@ -8,14 +8,14 @@ Author: CDADE project
 import numpy as np
 import pytest
 
-# Import detectors first to ensure they're registered
-from cdade.detectors import pca, iforest, lof, mcd
-
 from cdade.baselines.single_best import (
     BestSingleDetector,
-    find_best_detector,
     evaluate_detector,
+    find_best_detector,
 )
+
+# Import detectors first to ensure they're registered
+from cdade.detectors import iforest, lof, mcd, pca  # noqa: F401
 from cdade.registry import list_detectors
 
 
@@ -40,10 +40,7 @@ class TestFindBestDetector:
         print(f"Available detectors: {available_detectors}")
 
         # Find best detector
-        best_detector, metrics = find_best_detector(
-            X_train, y_train,
-            X_test, y_test
-        )
+        best_detector, metrics = find_best_detector(X_train, y_train, X_test, y_test)
 
         # Debug output
         print(f"Best detector: {best_detector}")
@@ -72,9 +69,7 @@ class TestFindBestDetector:
         # Find best from specific list
         detectors_to_test = ["pca", "iforest"]
         best_detector, metrics = find_best_detector(
-            X_train, y_train,
-            X_test, y_test,
-            detector_names=detectors_to_test
+            X_train, y_train, X_test, y_test, detector_names=detectors_to_test
         )
 
         # Should return one of the specified detectors
@@ -89,16 +84,12 @@ class TestFindBestDetector:
         y_test = np.random.randint(0, 2, 50)
 
         # Find best from all detectors
-        best_detector, metrics = find_best_detector(
-            X_train, y_train,
-            X_test, y_test
-        )
+        best_detector, metrics = find_best_detector(X_train, y_train, X_test, y_test)
 
         # Should successfully find a detector
         assert best_detector is not None
         assert metrics["f1"] >= 0.0
 
- 
 
 class TestEvaluateDetector:
     """Test detector evaluation."""
@@ -111,11 +102,7 @@ class TestEvaluateDetector:
         X_test = np.random.randn(50, 10)
         y_test = np.random.randint(0, 2, 50)
 
-        metrics = evaluate_detector(
-            "pca",
-            X_train, y_train,
-            X_test, y_test
-        )
+        metrics = evaluate_detector("pca", X_train, y_train, X_test, y_test)
 
         # Should return metrics
         assert "precision" in metrics
@@ -135,7 +122,7 @@ class TestEvaluateDetector:
             np.random.randn(100, 10),
             np.random.randint(0, 2, 100),
             np.random.randn(50, 10),
-            np.random.randint(0, 2, 50)
+            np.random.randint(0, 2, 50),
         )
 
         # Should return zeros for invalid detector
