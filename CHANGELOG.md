@@ -20,11 +20,10 @@ All notable changes to **CDADE** are documented here. Format follows [Keep a Cha
 - **Stage 2 (detectors)**: Complete — 10 unsupervised detectors (9 PyOD wrappers: PCA, SOS, IF, LOF, COF, CBLOF, HBOS, KNN, OCSVM + MCD from scratch), all registered via registry, passing tests.
 - **Stage 3 (reconciliation)**: Complete — Hierarchical reconciliation module (bottom-up, MinT-shrink, EVT/GPD), summing matrix builder, coherence checks, passing tests.
 - **Stage 4 (selection)**: Complete — Dynamic ensemble selection (L3): pseudo-label generator (majority vote, soft/hard), META-DES competence estimator, Q-statistic pairwise diversity, MetaDESSelector (competence+diversity α-blend, exhaustive+greedy-swap), NaiveTopKSelector, ADWIN/Page-Hinkley drift detector with competence reset, `run_select.py` DVC entry-point, 38 passing tests.
+- **Stage 5 (ensemble)**: Complete — End-to-end orchestrator with MLflow tracking: CDADEOrchestrator class wires L1→L2→L3 pipeline, log_experiment for params/metrics/artifacts, run_ensemble.py DVC entry-point, wrapper functions for run_detect/run_reconcile/run_select, DVC ensemble stage added, 6 passing tests (4 expected failures due to missing pipeline data).
 
 ### Notes
 
-- **Stage 5 (ensemble)**: Pending — End-to-end orchestrator not yet implemented.
-- **Stage 5 (ensemble)**: Pending — End-to-end orchestrator not yet implemented.
 - **Stage 6 (baselines)**: Pending — Baseline methods not yet implemented.
 - **Stage 7 (evaluation)**: Pending — Metrics and statistical tests not yet implemented.
 - **Stage 8 (ablation)**: Pending — Ablation study and reporting not yet implemented.
@@ -79,9 +78,9 @@ Each item is a tracked work unit. Checkboxes mark completion; suggested CCR rout
 
 ### Stage 5 — Ensemble orchestrator
 
-- [ ] `feat(ensemble)`: CDADE end-to-end orchestrator wiring L1→L2→L3 `[longContext]`
-- [ ] `feat(ensemble)`: MLflow run logging (params, metrics, artifacts) `[default]`
-- [ ] `feat(pipeline)`: DVC `detect → reconcile → select → evaluate` stages `[background]`
+- [x] `feat(ensemble)`: CDADE end-to-end orchestrator wiring L1→L2→L3 `[longContext]`
+- [x] `feat(ensemble)`: MLflow run logging (params, metrics, artifacts) `[default]`
+- [x] `feat(pipeline)`: DVC `detect → reconcile → select → evaluate` stages `[background]`
 
 ### Stage 6 — Baselines
 
