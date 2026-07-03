@@ -21,11 +21,11 @@ All notable changes to **CDADE** are documented here. Format follows [Keep a Cha
 - **Stage 3 (reconciliation)**: Complete — Hierarchical reconciliation module (bottom-up, MinT-shrink, EVT/GPD), summing matrix builder, coherence checks, passing tests.
 - **Stage 4 (selection)**: Complete — Dynamic ensemble selection (L3): pseudo-label generator (majority vote, soft/hard), META-DES competence estimator, Q-statistic pairwise diversity, MetaDESSelector (competence+diversity α-blend, exhaustive+greedy-swap), NaiveTopKSelector, ADWIN/Page-Hinkley drift detector with competence reset, `run_select.py` DVC entry-point, 38 passing tests.
 - **Stage 5 (ensemble)**: Complete — End-to-end orchestrator with MLflow tracking: CDADEOrchestrator class wires L1→L2→L3 pipeline, log_experiment for params/metrics/artifacts, run_ensemble.py DVC entry-point, wrapper functions for run_detect/run_reconcile/run_select, DVC ensemble stage added, 6 passing tests (4 expected failures due to missing pipeline data).
-- **Stage 6 (baselines)**: B1 and B2 complete — Farrington/Noufaily baseline (Poisson regression with statsmodels GLM, Z-score and LLR detection), best single detector baseline (validation-based selection with config pattern handling), 32 baseline tests passing.
+- **Stage 6 (baselines)**: Complete — B1 Farrington/Noufaily (Poisson GLM, Z-score + LLR), B2 best single detector (validation-based selection), B3 full ensemble average (AOM, min-max normalised), B4 static top-k greedy set-cover (α·competence + (1-α)·diversity, Eze et al.), B5 reconciliation + EVT (fixed pool + GPD peaks-over-threshold, Kandanaarachchi), `run_baselines.py` DVC entry-point with MLflow tracking, `baselines` DVC stage, 66 baseline tests passing.
 
 ### Notes
 
-- **Stage 6 (baselines)**: B1 and B2 complete — Farrington/Noufaily and best single detector baselines implemented with config-based detector handling.
+- **Stage 6 (baselines)**: Complete — B1–B5 all implemented; `run_baselines.py` runs all five on the same `data/injected/` data as CDADE with the same seed, logs nested MLflow runs, and writes `results/baselines_metrics.json` tracked by DVC.
 - **Stage 7 (evaluation)**: Pending — Metrics and statistical tests not yet implemented.
 - **Stage 8 (ablation)**: Pending — Ablation study and reporting not yet implemented.
 
@@ -87,9 +87,9 @@ Each item is a tracked work unit. Checkboxes mark completion; suggested CCR rout
 
 - [x] `feat(baselines)`: B1 Farrington/Noufaily (Python port with statsmodels GLM)
 - [x] `feat(baselines)`: B2 best single detector (validation-based selection)
-- [ ] `feat(baselines)`: B3 full-ensemble average (AOM) `[default]`
-- [ ] `feat(baselines)`: B4 static top-k greedy set-cover (Eze et al. incumbent) `[default]`
-- [ ] `feat(baselines)`: B5 reconciliation + EVT, no dynamic selection (Kandanaarachchi) `[default]`
+- [x] `feat(baselines)`: B3 full-ensemble average (AOM) `[default]`
+- [x] `feat(baselines)`: B4 static top-k greedy set-cover (Eze et al. incumbent) `[default]`
+- [x] `feat(baselines)`: B5 reconciliation + EVT, no dynamic selection (Kandanaarachchi) `[default]`
 
 ### Stage 7 — Evaluation & statistics
 
