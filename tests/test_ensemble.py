@@ -9,6 +9,16 @@ from omegaconf import DictConfig
 
 from cdade.ensemble.cdade import CDADEOrchestrator, run_ensemble
 
+# Guard: tests that call orchestrator.run() need real DVC injected data.
+# run_detect.py resolves data via Path("../data/injected/...") — mirror that
+# exact path here so _DATA_AVAILABLE reflects whether the orchestrator can run.
+_INJECTED_DATA = Path("../data/injected/sivep_counts_injected.parquet")
+_DATA_AVAILABLE = _INJECTED_DATA.exists()
+_SKIP_NO_DATA = pytest.mark.skipif(
+    not _DATA_AVAILABLE,
+    reason="DVC injected data not available — run `just data` first",
+)
+
 
 class TestCDADEOrchestrator:
     """Test CDADEOrchestrator class."""
@@ -23,8 +33,11 @@ class TestCDADEOrchestrator:
         assert orchestrator.cfg is cfg
         assert isinstance(orchestrator.results, dict)
 
+    @_SKIP_NO_DATA
     def test_run_returns_dict(self, cfg: DictConfig):
         """Test run returns dictionary.
+
+        Requires DVC injected data (run `just data` to produce it).
 
         Args:
             cfg: Test configuration
@@ -36,13 +49,17 @@ class TestCDADEOrchestrator:
         assert "reconciliation" in results
         assert "selection" in results
 
+    @_SKIP_NO_DATA
     def test_aggregate_metrics(self, cfg: DictConfig):
         """Test _aggregate_metrics generates expected keys.
+
+        Requires DVC injected data (run `just data` to produce it).
 
         Args:
             cfg: Test configuration
         """
         orchestrator = CDADEOrchestrator(cfg)
+        orchestrator.run()
         metrics = orchestrator._aggregate_metrics()
         assert isinstance(metrics, dict)
         # Should have at least these keys if pipeline ran
@@ -52,8 +69,11 @@ class TestCDADEOrchestrator:
 class TestRunEnsemble:
     """Test run_ensemble convenience function."""
 
+    @_SKIP_NO_DATA
     def test_run_ensemble_returns_dict(self, cfg: DictConfig):
         """Test run_ensemble returns dictionary.
+
+        Requires DVC injected data (run `just data` to produce it).
 
         Args:
             cfg: Test configuration
@@ -124,14 +144,15 @@ class TestDVCStage:
     """Test DVC ensemble stage integration."""
 
     def test_run_ensemble_entry_point(self):
-        """Test run_ensemble.py can be executed.
+        """Test the run_ensemble function is importable and callable.
 
-        This tests the DVC entry-point without actually running the full pipeline.
+        Imports from cdade.ensemble.cdade (the function), not the DVC
+        entry-point module run_ensemble.py which has module-level Hydra
+        initialisation that requires an absolute config path.
         """
-        # Just verify the file can be imported
-        from cdade.ensemble import run_ensemble
+        from cdade.ensemble.cdade import run_ensemble as _run_ensemble
 
-        assert callable(run_ensemble)
+        assert callable(_run_ensemble)
 
     def test_ensemble_module_structure(self):
         """Test ensemble module has correct public API.
