@@ -44,6 +44,20 @@ stages:
       - data/injected/tycho_counts_injected.parquet
       - data/injected/tycho_counts_mask.parquet
 
+  baselines:
+    cmd: uv run python -m cdade.baselines.run_baselines
+    deps:
+      - cdade/baselines
+      - configs
+      - data/injected
+    params:
+      - experiment.seed
+    metrics:
+      - results/baselines_metrics.json:
+          cache: false
+    outs:
+      - results/baselines
+
   detect:
     cmd: uv run python -m cdade.detectors.run_detect
     deps:
