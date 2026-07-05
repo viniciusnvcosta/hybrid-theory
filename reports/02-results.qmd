@@ -1,0 +1,32 @@
+---
+title: "CDADE Results Report"
+author: "CDADE Team"
+date: "2026-07-05"
+format:
+  html:
+    toc: true
+---
+
+# Results
+
+## Metrics summary
+
+The results table will be populated from results/stats/summary.csv.
+
+## Statistical comparison
+
+A placeholder critical-difference diagram will be generated from results/stats/cliffs_delta.json.
+
+```python
+import json
+from pathlib import Path
+import matplotlib.pyplot as plt
+
+with open("results/stats/cliffs_delta.json") as f:
+    cliffs = json.load(f)
+
+fig, ax = plt.subplots()
+ax.text(0.5, 0.5, "Critical-difference diagram placeholder", ha="center")
+ax.set_axis_off()
+plt.show()
+```

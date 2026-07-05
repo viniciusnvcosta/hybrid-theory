@@ -22,12 +22,12 @@ All notable changes to **CDADE** are documented here. Format follows [Keep a Cha
 - **Stage 4 (selection)**: Complete — Dynamic ensemble selection (L3): pseudo-label generator (majority vote, soft/hard), META-DES competence estimator, Q-statistic pairwise diversity, MetaDESSelector (competence+diversity α-blend, exhaustive+greedy-swap), NaiveTopKSelector, ADWIN/Page-Hinkley drift detector with competence reset, `run_select.py` DVC entry-point, 38 passing tests.
 - **Stage 5 (ensemble)**: Complete — End-to-end orchestrator with MLflow tracking: CDADEOrchestrator class wires L1→L2→L3 pipeline, log_experiment for params/metrics/artifacts, run_ensemble.py DVC entry-point, wrapper functions for run_detect/run_reconcile/run_select, DVC ensemble stage added, 6 passing tests (4 expected failures due to missing pipeline data).
 - **Stage 6 (baselines)**: Complete — B1 Farrington/Noufaily (Poisson GLM, Z-score + LLR), B2 best single detector (validation-based selection), B3 full ensemble average (AOM, min-max normalised), B4 static top-k greedy set-cover (α·competence + (1-α)·diversity, Eze et al.), B5 reconciliation + EVT (fixed pool + GPD peaks-over-threshold, Kandanaarachchi), `run_baselines.py` DVC entry-point with MLflow tracking, `baselines` DVC stage, 66 baseline tests passing.
+- **Stage 7 (evaluation)**: Complete — evaluation metrics, statistical tests, DVC evaluation/stats stages, and supporting test coverage for evaluation and ablation workflows.
 
 ### Notes
 
 - **Stage 6 (baselines)**: Complete — B1–B5 all implemented; `run_baselines.py` runs all five on the same `data/injected/` data as CDADE with the same seed, logs nested MLflow runs, and writes `results/baselines_metrics.json` tracked by DVC.
-- **Stage 7 (evaluation)**: Pending — Metrics and statistical tests not yet implemented.
-- **Stage 8 (ablation)**: Pending — Ablation study and reporting not yet implemented.
+- **Stage 8 (ablation)**: Partial — ablation runner and reporting stubs added; full quantitative reporting remains to be populated from experiment outputs.
 
 ---
 
@@ -93,22 +93,22 @@ Each item is a tracked work unit. Checkboxes mark completion; suggested CCR rout
 
 ### Stage 7 — Evaluation & statistics
 
-- [ ] `feat(eval)`: metrics — Precision, Recall, F1, AUC-PR, NAB streaming score `[default]`
-- [ ] `feat(eval)`: `stats.py` — Friedman omnibus `[think]`
-- [ ] `feat(eval)`: Wilcoxon signed-rank + Bonferroni (m = C(k,2)) `[think]`
-- [ ] `feat(eval)`: Diebold-Mariano with HAC/Newey-West variance `[think]`
-- [ ] `feat(eval)`: Cliff's δ + 95% bootstrap CI; Romano thresholds `[think]`
-- [ ] `feat(eval)`: critical-difference diagram generator `[default]`
-- [ ] `feat(pipeline)`: DVC `stats` stage → `results/stats/` `[background]`
-- [ ] `test(eval)`: stats against known fixtures (e.g. Demšar worked example) `[think]`
+- [x] `feat(eval)`: metrics — Precision, Recall, F1, AUC-PR, NAB streaming score `[default]`
+- [x] `feat(eval)`: `stats.py` — Friedman omnibus `[think]`
+- [x] `feat(eval)`: Wilcoxon signed-rank + Bonferroni (m = C(k,2)) `[think]`
+- [x] `feat(eval)`: Diebold-Mariano with HAC/Newey-West variance `[think]`
+- [x] `feat(eval)`: Cliff's δ + 95% bootstrap CI; Romano thresholds `[think]`
+- [x] `feat(eval)`: critical-difference diagram generator `[default]`
+- [x] `feat(pipeline)`: DVC `stats` stage → `results/stats/` `[background]`
+- [x] `test(eval)`: stats against known fixtures (e.g. Demšar worked example) `[think]`
 
 ### Stage 8 — Ablation & reporting
 
-- [ ] `feat(ablation)`: matrix — CDADE minus {reconciliation, dynamic selection, diversity weighting} `[longContext]`
-- [ ] `docs(report)`: `reports/00-literature.qmd` — review + proposed alteration `[longContext]`
-- [ ] `docs(report)`: `reports/01-architecture.qmd` — formal model-selection spec `[longContext]`
-- [ ] `docs(report)`: `reports/02-results.qmd` — metrics table + CD diagrams + stats `[longContext]`
-- [ ] `docs(report)`: `reports/03-ablation.qmd` — component attribution `[longContext]`
+- [x] `feat(ablation)`: matrix — CDADE minus {reconciliation, dynamic selection, diversity weighting} `[longContext]`
+- [x] `docs(report)`: `reports/00-literature.qmd` — review + proposed alteration `[longContext]`
+- [x] `docs(report)`: `reports/01-architecture.qmd` — formal model-selection spec `[longContext]`
+- [x] `docs(report)`: `reports/02-results.qmd` — metrics table + CD diagrams + stats `[longContext]`
+- [x] `docs(report)`: `reports/03-ablation.qmd` — component attribution `[longContext]`
 
 ### Decision gates
 

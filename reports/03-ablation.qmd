@@ -1,0 +1,29 @@
+---
+title: "CDADE Ablation Study"
+author: "CDADE Team"
+date: "2026-07-05"
+format:
+  html:
+    toc: true
+---
+
+# Ablation Study
+
+## Variant overview
+
+This stub will summarize the component-attribution analysis for the CDADE variants.
+
+## Planned inputs
+
+- Ablation summary: results/ablation/summary.csv
+- Statistical reference: results/stats/summary.csv
+
+## Sections
+
+### Full pipeline
+
+### No reconciliation
+
+### No dynamic selection
+
+### No diversity

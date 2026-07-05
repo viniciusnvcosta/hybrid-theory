@@ -1,0 +1,24 @@
+---
+title: "CDADE Literature Review"
+author: "CDADE Team"
+date: "2026-07-05"
+format:
+  html:
+    toc: true
+---
+
+# Literature Review
+
+## Scope
+
+This stub captures the planned literature review and proposed modification for CDADE.
+
+## Planned evidence
+
+- Metrics summary: results/stats/summary.csv
+- Ablation summary: results/ablation/summary.csv
+
+## Next steps
+
+- Add a concise review of reconciliation and selection literature.
+- Link each cited method to its current ablation and statistical outcome.

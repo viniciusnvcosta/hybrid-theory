@@ -1,0 +1,26 @@
+---
+title: "CDADE Architecture Notes"
+author: "CDADE Team"
+date: "2026-07-05"
+format:
+  html:
+    toc: true
+---
+
+# Architecture
+
+## System overview
+
+This document will describe the L1/L2/L3 architecture and the evaluation loop.
+
+## Component checklist
+
+- Detector pool
+- Reconciliation layer
+- Dynamic selection layer
+- Evaluation and ablation outputs
+
+## Inputs
+
+- Statistical summary: results/stats/summary.csv
+- Ablation summary: results/ablation/summary.csv
