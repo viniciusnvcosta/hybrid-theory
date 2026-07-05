@@ -6,6 +6,8 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
 
 import hydra
 import mlflow
@@ -76,9 +78,7 @@ def load_variant_blended_scores(blended_path: Path, n_expected: int) -> np.ndarr
     return scores
 
 
-def apply_variant_transformation(
-    blended_scores: np.ndarray, variant: str, cfg: DictConfig
-) -> np.ndarray:
+def apply_variant_transformation(blended_scores: np.ndarray, variant: str, cfg: Any) -> np.ndarray:
     """Apply variant-specific transformation to blended scores.
 
     For "full" and "no_reconciliation": return scores unchanged (identity).
@@ -149,24 +149,23 @@ def run_ablation_variants(results_dir: Path | None = None) -> dict[str, dict]:
     ablation_dir = results_dir / "ablation"
     ablation_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.info(f"Loading ground truth from {_INJECTED_DIR}")
+    logger.info("Loading ground truth from %s", _INJECTED_DIR)
     y_true = load_variant_ground_truth(_INJECTED_DIR)
 
-    logger.info(f"Loading blended scores from {results_dir / 'selection'}")
+    logger.info("Loading blended scores from %s", results_dir / "selection")
     blended_path = results_dir / "selection" / "blended_scores.csv"
     blended_scores = load_variant_blended_scores(blended_path, len(y_true))
 
     # Create a minimal config object for variant transformations
-    cfg = type("Config", (), {})()
-    cfg.selection = type("Selection", (), {})()
-    cfg.selection.k = 5
-    cfg.selection.alpha = 0.5
+    # Use a simple namespace for a minimal, mutable config-like object
+    cfg = SimpleNamespace()
+    cfg.selection = SimpleNamespace(k=5, alpha=0.5)
 
     variants = ["full", "no_reconciliation", "no_dynamic_selection", "no_diversity"]
     all_metrics = {}
 
     for variant in variants:
-        logger.info(f"Processing variant: {variant}")
+        logger.info("Processing variant: %s", variant)
 
         # Apply variant transformation
         variant_scores = apply_variant_transformation(blended_scores, variant, cfg)
@@ -177,16 +176,16 @@ def run_ablation_variants(results_dir: Path | None = None) -> dict[str, dict]:
 
         # Write variant metrics to JSON
         variant_file = ablation_dir / f"{variant}_metrics.json"
-        with open(variant_file, "w") as fh:
+        with open(variant_file, "w", encoding="utf-8") as fh:
             json.dump(metrics, fh, indent=2)
-        logger.info(f"  Metrics written to {variant_file}")
+        logger.info("Metrics written to %s", variant_file)
 
     # Write summary CSV
     summary_df = pd.DataFrame(all_metrics).T
     summary_df.insert(0, "variant", summary_df.index)
     summary_path = ablation_dir / "summary.csv"
     summary_df.to_csv(summary_path, index=False)
-    logger.info(f"Summary written to {summary_path}")
+    logger.info("Summary written to %s", summary_path)
 
     return all_metrics
 
@@ -209,12 +208,16 @@ def _log_variant_to_mlflow(variant: str, metrics: dict[str, float]) -> None:
     config_name="config",
     version_base=None,
 )
-def main(cfg: DictConfig) -> None:
+def main(cfg: DictConfig | None = None) -> None:
     """Orchestrate ablation study.
 
     Args:
-        cfg: Hydra configuration from configs/config.yaml.
+        cfg: Hydra configuration from configs/config.yaml. When invoked
+            as a normal function (e.g. for static analysis) this may be None.
     """
+    if cfg is None:
+        raise ValueError("Hydra configuration is required")
+
     mlflow_uri = cfg.experiment.mlflow_tracking_uri
     mlflow.set_tracking_uri(mlflow_uri)
     mlflow.set_experiment("cdade_ablation")
@@ -232,7 +235,7 @@ def main(cfg: DictConfig) -> None:
     for variant, metrics in all_metrics.items():
         auc_pr = metrics["auc_pr"]
         nab = metrics["nab"]
-        print(f"{variant:25s} AUC-PR: {auc_pr:.4f}  NAB: {nab:.4f}")
+        logger.info("%s AUC-PR: %.4f  NAB: %.4f", variant, auc_pr, nab)
 
 
 if __name__ == "__main__":
