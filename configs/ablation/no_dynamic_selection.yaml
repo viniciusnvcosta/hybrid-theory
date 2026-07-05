@@ -1,0 +1,6 @@
+# @package _global_
+selection:
+  name: naive_topk
+  k: 5
+ablation:
+  variant: no_dynamic_selection

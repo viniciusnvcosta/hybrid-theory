@@ -1,0 +1,5 @@
+# @package _global_
+selection:
+  alpha: 1.0
+ablation:
+  variant: no_diversity

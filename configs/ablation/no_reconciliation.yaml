@@ -1,0 +1,5 @@
+# @package _global_
+reconciliation:
+  name: identity # pass-through; reconciler returns input unchanged
+ablation:
+  variant: no_reconciliation
