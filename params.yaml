@@ -26,3 +26,9 @@ inject:
   spike_magnitude: 3.0
   level_shift_delta: 2.0
   drift_slope: 0.05
+
+evaluation:
+  test_frac: 0.2
+  nab_window: 4
+  alpha: 0.05
+  bootstrap_n: 1000

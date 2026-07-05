@@ -106,6 +106,9 @@ stages:
       - configs
       - results/selection
       - data/injected
+    params:
+      - evaluation.test_frac
+      - evaluation.nab_window
     metrics:
       - results/metrics.json:
           cache: false
