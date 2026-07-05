@@ -134,6 +134,6 @@ Each region and each external dataset is one row in the Friedman table. Report r
 
 - [ ] Implemented with type hints + docstrings, ≤ 400 lines.
 - [ ] Registered in the relevant registry; referenced by config, not import.
-- [ ] Mirrored pytest passing; `just lint` and `just test` green.
+- [ ] Mirrored pre-commit + pytest passing; `just ci` green.
 - [ ] DVC stage wired if it produces an artifact.
 - [ ] MLflow logging in place for any metric it emits.

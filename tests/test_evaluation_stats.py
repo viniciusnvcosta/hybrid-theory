@@ -371,19 +371,22 @@ class TestStatsOutputFiles:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_dir = Path(tmpdir) / "stats"
 
-            # Prepare mock metrics.json
+            # Prepare metrics and score data
             y_true, cdade_scores, baselines = synthetic_scores_for_dm
             all_metrics = {"cdade": {"auc_pr": 0.9}}
             for name in baselines:
                 all_metrics[name] = {"auc_pr": 0.75}
 
-            metrics_path = Path(tmpdir) / "metrics.json"
-            with open(metrics_path, "w") as f:
-                json.dump(all_metrics, f)
-
-            # Run pipeline
+            # Run pipeline with real DM and Cliff's delta data
             run_stats_pipeline(
-                metrics_path, output_dir, alpha=0.05, auc_pr_matrix=synthetic_auc_pr_multi_dataset
+                all_metrics,
+                alpha=0.05,
+                bootstrap_n=500,
+                output_dir=output_dir,
+                auc_pr_matrix=synthetic_auc_pr_multi_dataset,
+                y_true=y_true,
+                cdade_scores=cdade_scores,
+                baseline_scores=baselines,
             )
 
             # Verify output files
@@ -400,6 +403,24 @@ class TestStatsOutputFiles:
                 assert fpath.exists(), f"Missing {fname}"
                 assert fpath.stat().st_size > 0, f"{fname} is empty"
 
+            # Verify DM results are real (not all stubs)
+            with open(output_dir / "diebold_mariano.json") as f:
+                dm_data = json.load(f)
+            assert len(dm_data) > 0
+            for _, dm_res in dm_data.items():
+                assert "stat" in dm_res
+                assert "p_value" in dm_res
+                assert isinstance(dm_res["stat"], int | float)
+
+            # Verify Cliff's delta results are real
+            with open(output_dir / "cliffs_delta.json") as f:
+                cliffs_data = json.load(f)
+            assert len(cliffs_data) > 0
+            for _, cliffs_res in cliffs_data.items():
+                assert "delta" in cliffs_res
+                assert -1 <= cliffs_res["delta"] <= 1
+                assert "magnitude" in cliffs_res
+
     def test_stats_graceful_single_dataset_degradation(self, synthetic_scores_for_dm):
         """Single-dataset case should skip Friedman/Wilcoxon, run DM/Cliff's δ only."""
         from cdade.evaluation.stats import run_stats_pipeline
@@ -415,12 +436,17 @@ class TestStatsOutputFiles:
             for i, name in enumerate(["b1", "b2", "b3", "b4"], 1):
                 all_metrics[name] = {"auc_pr": auc_pr_single[0, i]}
 
-            metrics_path = Path(tmpdir) / "metrics.json"
-            with open(metrics_path, "w") as f:
-                json.dump(all_metrics, f)
-
-            # Run pipeline with single dataset
-            run_stats_pipeline(metrics_path, output_dir, alpha=0.05, auc_pr_matrix=auc_pr_single)
+            # Run pipeline with single dataset and real score data
+            run_stats_pipeline(
+                all_metrics,
+                alpha=0.05,
+                bootstrap_n=500,
+                output_dir=output_dir,
+                auc_pr_matrix=auc_pr_single,
+                y_true=y_true,
+                cdade_scores=cdade_scores,
+                baseline_scores=baselines,
+            )
 
             # friedman.json should have skip reason
             friedman_path = output_dir / "friedman.json"
@@ -429,6 +455,47 @@ class TestStatsOutputFiles:
 
             assert "stop_reason" in friedman_data or "skipped" in str(friedman_data).lower()
 
-            # DM and Cliff's delta should still exist
-            assert (output_dir / "diebold_mariano.json").exists()
-            assert (output_dir / "cliffs_delta.json").exists()
+            # DM and Cliff's delta should still exist and be real (not stubs)
+            with open(output_dir / "diebold_mariano.json") as f:
+                dm_data = json.load(f)
+            assert len(dm_data) > 0
+
+            with open(output_dir / "cliffs_delta.json") as f:
+                cliffs_data = json.load(f)
+            assert len(cliffs_data) > 0
+
+    def test_dm_runs_when_scores_provided(self, synthetic_scores_for_dm):
+        """DM test should run and produce real results when score arrays provided."""
+        from cdade.evaluation.stats import run_stats_pipeline
+
+        y_true, cdade_scores, baselines = synthetic_scores_for_dm
+        metrics = {"cdade": {"auc_pr": 0.9}, "b1": {"auc_pr": 0.75}}
+
+        result = run_stats_pipeline(
+            metrics, alpha=0.05, y_true=y_true, cdade_scores=cdade_scores, baseline_scores=baselines
+        )
+
+        dm_result = result["diebold_mariano"]
+        assert "b1" in dm_result
+        assert "stat" in dm_result["b1"]
+        assert "p_value" in dm_result["b1"]
+        assert 0 <= dm_result["b1"]["p_value"] <= 1
+
+    def test_cliffs_delta_runs_when_scores_provided(self, synthetic_scores_for_dm):
+        """Cliff's delta should run and produce real results when score arrays provided."""
+        from cdade.evaluation.stats import run_stats_pipeline
+
+        y_true, cdade_scores, baselines = synthetic_scores_for_dm
+        metrics = {"cdade": {"auc_pr": 0.9}, "b1": {"auc_pr": 0.75}}
+
+        result = run_stats_pipeline(
+            metrics, alpha=0.05, cdade_scores=cdade_scores, baseline_scores=baselines
+        )
+
+        cliffs_result = result["cliffs_delta"]
+        assert "b1" in cliffs_result
+        assert "delta" in cliffs_result["b1"]
+        assert "ci_lower" in cliffs_result["b1"]
+        assert "ci_upper" in cliffs_result["b1"]
+        assert "magnitude" in cliffs_result["b1"]
+        assert -1 <= cliffs_result["b1"]["delta"] <= 1
