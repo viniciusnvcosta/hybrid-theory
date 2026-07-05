@@ -122,3 +122,14 @@ stages:
       - results/metrics.json
     outs:
       - results/stats
+
+  ablation:
+    cmd: uv run python -m cdade.ablation.run_ablation
+    deps:
+      - cdade/ablation
+      - cdade/evaluation
+      - configs
+      - results/selection
+      - data/injected
+    outs:
+      - results/ablation
