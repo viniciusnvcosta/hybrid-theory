@@ -88,11 +88,11 @@ class TestAblationOutputStructure:
         ablation_dir.mkdir(parents=True, exist_ok=True)
 
         # Mock the key dependencies
-        with patch("cdade.ablation.run_ablation.load_variant_ground_truth") as mock_load_gt, patch(
-            "cdade.ablation.run_ablation.load_variant_blended_scores"
-        ) as mock_load_scores, patch(
-            "cdade.ablation.run_ablation.compute_all_metrics"
-        ) as mock_compute_metrics:
+        with (
+            patch("cdade.ablation.run_ablation.load_variant_ground_truth") as mock_load_gt,
+            patch("cdade.ablation.run_ablation.load_variant_blended_scores") as mock_load_scores,
+            patch("cdade.ablation.run_ablation.compute_all_metrics") as mock_compute_metrics,
+        ):
             # Setup mocks
             y_true = np.array([0, 1, 1, 0, 1])
             mock_load_gt.return_value = y_true
@@ -121,7 +121,7 @@ class TestAblationOutputStructure:
                 assert variant_file.exists(), f"Missing {variant}_metrics.json"
 
                 # Load and validate structure
-                with open(variant_file) as f:
+                with open(variant_file, encoding="utf-8") as f:
                     metrics = json.load(f)
 
                 required_keys = {"auc_pr", "nab", "precision", "recall", "f1", "threshold"}
