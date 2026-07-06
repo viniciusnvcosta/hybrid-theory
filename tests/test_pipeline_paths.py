@@ -1,8 +1,7 @@
-import shutil
-from pathlib import Path
-from types import SimpleNamespace
+# ABOUTME: Tests that pipeline stage runners write outputs to correct paths.
+# ABOUTME: Verifies namespaced dataset output directories.
 
-import pandas as pd
+from types import SimpleNamespace
 
 import cdade.registry as registry_module
 from cdade.detectors import run_detect
@@ -13,22 +12,31 @@ class DummyDetector:
         return self
 
     def score(self, data):
-        return pd.Series([0.5] * len(data), index=data.index)
+        import numpy as np
+
+        return np.full(len(data), 0.5)
 
 
-def test_run_detect_writes_to_repo_results_dir(monkeypatch, tmp_path):
-    repo_root = Path(__file__).resolve().parents[1]
-    output_dir = repo_root / "results" / "detectors"
-    if output_dir.exists():
-        shutil.rmtree(output_dir)
+def test_run_detect_writes_to_namespaced_dir(monkeypatch, tmp_path):
+    """detect stage writes leaf_forecasts.csv to results/detectors/{dataset}/."""
+    import pandas as pd
 
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(registry_module, "get_detector", lambda name: DummyDetector())
+    # Provide a minimal injected parquet so the loader succeeds
+    injected_dir = tmp_path / "data" / "injected"
+    injected_dir.mkdir(parents=True)
+    df = pd.DataFrame({"a": [1.0, 2.0, 3.0]})
+    df.to_parquet(injected_dir / "sivep_counts_injected.parquet")
 
-    cfg = SimpleNamespace(detector=SimpleNamespace(name="dummy"))
-    run_detect.run_detect(cfg)
+    monkeypatch.setattr(run_detect, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(registry_module, "get_detector", lambda name: DummyDetector)
 
-    assert (output_dir / "leaf_forecasts.csv").exists()
-    assert (output_dir / "detector_results.json").exists()
+    cfg = SimpleNamespace(
+        datasets=SimpleNamespace(active=["sivep"]),
+        detector=SimpleNamespace(name="dummy", config=None),
+    )
 
-    shutil.rmtree(output_dir, ignore_errors=True)
+    run_detect.run_detect(cfg, dataset_name="sivep")
+
+    out_dir = tmp_path / "results" / "detectors" / "sivep"
+    assert (out_dir / "leaf_forecasts.csv").exists()
+    assert (out_dir / "detector_results.json").exists()
