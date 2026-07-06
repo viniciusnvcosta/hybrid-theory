@@ -1,3 +1,6 @@
+# ABOUTME: CLI entry point for the detector pipeline stage (DVC: detect).
+# ABOUTME: Writes detector scores and results to results/detectors/{dataset}/.
+
 """CLI entry point for detector pipeline stage (DVC: detect).
 
 Runs all registered detectors on injected data and saves results.
