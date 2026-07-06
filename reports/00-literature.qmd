@@ -9,16 +9,17 @@ format:
 
 # Literature Review
 
-## Scope
+## Motivation
 
-This stub captures the planned literature review and proposed modification for CDADE.
+CDADE targets hierarchical anomaly detection for count time series. The project extends the static top-$k$ ensemble of Eze et al. (2023) by introducing a coherence-preserving reconciliation layer and a drift-aware dynamic selection stage.
 
-## Planned evidence
+## Literature framing
 
-- Metrics summary: results/stats/summary.csv
-- Ablation summary: results/ablation/summary.csv
+- Eze et al. (2023) motivate the use of a detector ensemble for public-health surveillance, but the original approach is static and does not explicitly enforce hierarchical coherence.
+- Hierarchical reconciliation follows the MinT perspective, where forecasts are reconciled through a summing matrix so that aggregate and leaf-level predictions remain additive.
+- Dynamic ensemble selection is motivated by META-DES-style competence estimation and diversity weighting, with drift detection used to reset the active pool when the recent regime changes.
+- The evaluation protocol follows the public-health anomaly-detection setting and emphasizes precision/recall, AUC-PR, and NAB rather than a single point-adjusted F1 metric.
 
-## Next steps
+## How the current report connects to the README
 
-- Add a concise review of reconciliation and selection literature.
-- Link each cited method to its current ablation and statistical outcome.
+The report intentionally reflects the README narrative: a hybrid L1/L2/L3 system, baselines against which CDADE is compared, and a rigorous evaluation loop that is intended to support later multi-dataset claims.

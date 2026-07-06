@@ -79,4 +79,4 @@ ablation:
 
 report:
     @command -v quarto >/dev/null || { echo 'Quarto CLI not found. Install Quarto first.'; exit 1; }
-    quarto render reports --output-dir ../results/reports
+    quarto render reports --output-dir ./rendered_reports --to html

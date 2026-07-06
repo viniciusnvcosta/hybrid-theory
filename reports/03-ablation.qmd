@@ -11,19 +11,21 @@ format:
 
 ## Variant overview
 
-This stub will summarize the component-attribution analysis for the CDADE variants.
+The ablation workflow evaluates the same experiment under four variants: the full pipeline, no reconciliation, no dynamic selection, and no diversity.
 
-## Planned inputs
+## Current ablation results
 
-- Ablation summary: results/ablation/summary.csv
-- Statistical reference: results/stats/summary.csv
+| Variant | AUC-PR | NAB | Precision | Recall | F1 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Full | 0.9924 | 0.0000 | 0.9924 | 1.0000 | 0.9962 |
+| No reconciliation | 0.9924 | 0.0000 | 0.9924 | 1.0000 | 0.9962 |
+| No dynamic selection | 0.9924 | 0.0000 | 0.9924 | 1.0000 | 0.9962 |
+| No diversity | 0.9924 | 0.0000 | 0.9924 | 1.0000 | 0.9962 |
 
-## Sections
+## Interpretation
 
-### Full pipeline
+The current injected dataset did not separate the variants clearly. All ablation configurations produced nearly identical scores, so the experiment does not yet provide evidence that any single component is responsible for the observed gains. This is an expected outcome for an early run and highlights the need for more diverse datasets and stronger anomaly regimes in future experiments.
 
-### No reconciliation
+## Connection to the README
 
-### No dynamic selection
-
-### No diversity
+This chapter now reflects the ablation matrix described in the README and the project plan for comparing the full pipeline against component-wise ablations.

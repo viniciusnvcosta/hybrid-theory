@@ -11,16 +11,28 @@ format:
 
 ## System overview
 
-This document will describe the L1/L2/L3 architecture and the evaluation loop.
+CDADE is organized as a three-stage pipeline:
 
-## Component checklist
+1. L1 detector pool: unsupervised detectors produce anomaly scores over the input series.
+2. L2 reconciliation: leaf-level scores are reconciled to enforce coherence across the hierarchy.
+3. L3 dynamic selection: a sliding-window selector estimates competence, diversity, and drift to choose the active subset.
 
-- Detector pool
-- Reconciliation layer
-- Dynamic selection layer
-- Evaluation and ablation outputs
+## Pipeline flow
 
-## Inputs
+```text
+Raw counts -> L1 detectors -> L2 reconciliation -> L3 selection -> blended anomaly score
+```
 
-- Statistical summary: results/stats/summary.csv
-- Ablation summary: results/ablation/summary.csv
+The implementation is config-driven and runs through the DVC stages prepare, inject, baselines, detect, reconcile, select, ensemble, evaluate, stats, and ablation.
+
+## Current implementation notes
+
+- The detector stage writes scores to results/detectors.
+- The reconciliation stage writes reconciled forecasts to results/reconciliation.
+- The selection stage writes blended scores, competence traces, and drift history to results/selection.
+- The ensemble stage aggregates the run summary and writes the final JSON payloads under results/ensemble.
+- Evaluation, statistical testing, and ablation outputs are written under results/metrics.json, results/stats, and results/ablation.
+
+## Coverage of the README architecture
+
+This chapter now covers the same L1/L2/L3 framing described in the README, including the hierarchical reconciliation objective and the dynamic-selection rationale.
