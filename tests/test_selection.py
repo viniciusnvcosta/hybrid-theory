@@ -248,15 +248,16 @@ def test_main_handles_single_column_scores_csv(tmp_path, monkeypatch):
     from cdade.selection import run_select as selection_run
 
     repo_root = Path(__file__).resolve().parents[1]
-    recon_dir = repo_root / "results" / "reconciliation"
+    recon_dir = repo_root / "results" / "reconciliation" / "sivep"
     recon_dir.mkdir(parents=True, exist_ok=True)
-    out_dir = repo_root / "results" / "selection"
+    out_dir = repo_root / "results" / "selection" / "sivep"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     scores_df = pd.DataFrame({"score": np.linspace(0.1, 0.9, 20)})
     scores_df.to_csv(recon_dir / "leaf_forecasts_reconciled.csv", index=False)
 
     cfg = SimpleNamespace(
+        datasets=SimpleNamespace(active=["sivep"]),
         selection=SimpleNamespace(
             window=5,
             stride=1,
@@ -264,11 +265,12 @@ def test_main_handles_single_column_scores_csv(tmp_path, monkeypatch):
             k=1,
             name="meta_des",
             drift_method="adwin",
-        )
+        ),
     )
 
     monkeypatch.chdir(tmp_path)
-    selection_run.main(cfg)
+    monkeypatch.setattr(selection_run, "_PROJECT_ROOT", repo_root)
+    selection_run.main.__wrapped__(cfg)
 
     assert (out_dir / "selected_indices.npy").exists()
     assert (out_dir / "competence.npy").exists()
