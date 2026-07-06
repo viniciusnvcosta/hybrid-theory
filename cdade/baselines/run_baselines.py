@@ -23,6 +23,8 @@ import numpy as np
 import pandas as pd
 from omegaconf import DictConfig
 
+from cdade.data.dataset_paths import get_dataset_artifact_paths
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -34,7 +36,7 @@ _INJECTED_DIR = _PROJECT_ROOT / "data" / "injected"
 _RESULTS_DIR = _PROJECT_ROOT / "results" / "baselines"
 
 
-def _load_injected_data() -> tuple[pd.DataFrame, pd.DataFrame]:
+def _load_injected_data(cfg: DictConfig) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Load injected counts and anomaly mask for SIVEP.
 
     Returns:
@@ -43,8 +45,9 @@ def _load_injected_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     Raises:
         FileNotFoundError: If DVC injected data has not been produced yet.
     """
-    counts_path = _INJECTED_DIR / "sivep_counts_injected.parquet"
-    mask_path = _INJECTED_DIR / "sivep_counts_mask.parquet"
+    artifact_paths = get_dataset_artifact_paths(cfg, project_root=_PROJECT_ROOT)
+    counts_path = artifact_paths["injected_counts"]
+    mask_path = artifact_paths["mask"]
 
     if not counts_path.exists():
         raise FileNotFoundError(
@@ -55,6 +58,90 @@ def _load_injected_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     counts = pd.read_parquet(counts_path)
     mask = pd.read_parquet(mask_path)
     return counts, mask
+
+
+def _run_baselines_for_dataset(
+    dataset_name: str,
+    counts: pd.DataFrame,
+    mask: pd.DataFrame,
+    cfg: DictConfig,
+    out_dir: Path,
+) -> dict:
+    """Run B1–B5 for a single dataset and write outputs to out_dir.
+
+    Args:
+        dataset_name: Name used for logging (e.g. "sivep").
+        counts: Injected count DataFrame.
+        mask: Boolean anomaly mask DataFrame.
+        cfg: Hydra configuration.
+        out_dir: Per-dataset output directory; created if absent.
+
+    Returns:
+        Dict mapping baseline name to metrics dict.
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+    X_train, X_val, X_test, y_train, y_val, y_test = _train_test_split(counts, mask)
+    logger.info(
+        "[%s] Split: train=%d val=%d test=%d anomaly_rate=%.2f%%",
+        dataset_name,
+        len(X_train),
+        len(X_val),
+        len(X_test),
+        100 * y_test.mean(),
+    )
+
+    dataset_metrics: dict[str, dict] = {}
+
+    # B1
+    try:
+        b1_scores, b1_params = _run_b1(counts, cfg)
+        n_b1 = min(len(b1_scores), len(y_test))
+        b1_metrics = _log_baseline("b1_farrington", b1_scores[:n_b1], y_test[:n_b1], b1_params)
+        dataset_metrics["b1_farrington"] = b1_metrics
+        np.save(out_dir / "b1_scores.npy", b1_scores)
+    except Exception as exc:
+        logger.warning("[%s] B1 failed: %s", dataset_name, exc)
+
+    # B2
+    try:
+        b2_scores, b2_params = _run_b2(X_train, X_val, y_val, X_test, cfg)
+        b2_metrics = _log_baseline("b2_best_single", b2_scores, y_test, b2_params)
+        dataset_metrics["b2_best_single"] = b2_metrics
+        np.save(out_dir / "b2_scores.npy", b2_scores)
+    except Exception as exc:
+        logger.warning("[%s] B2 failed: %s", dataset_name, exc)
+
+    # B3
+    try:
+        b3_scores, b3_params = _run_b3(X_train, X_test, cfg)
+        b3_metrics = _log_baseline("b3_ensemble_average", b3_scores, y_test, b3_params)
+        dataset_metrics["b3_ensemble_average"] = b3_metrics
+        np.save(out_dir / "b3_scores.npy", b3_scores)
+    except Exception as exc:
+        logger.warning("[%s] B3 failed: %s", dataset_name, exc)
+
+    # B4
+    try:
+        b4_scores, b4_params = _run_b4(X_train, X_val, y_val, X_test, cfg)
+        b4_metrics = _log_baseline("b4_static_topk", b4_scores, y_test, b4_params)
+        dataset_metrics["b4_static_topk"] = b4_metrics
+        np.save(out_dir / "b4_scores.npy", b4_scores)
+    except Exception as exc:
+        logger.warning("[%s] B4 failed: %s", dataset_name, exc)
+
+    # B5
+    try:
+        b5_scores, b5_params = _run_b5(X_train, X_test, cfg)
+        b5_metrics = _log_baseline("b5_reconciliation_evt", b5_scores, y_test, b5_params)
+        dataset_metrics["b5_reconciliation_evt"] = b5_metrics
+        np.save(out_dir / "b5_scores.npy", b5_scores)
+    except Exception as exc:
+        logger.warning("[%s] B5 failed: %s", dataset_name, exc)
+
+    with open(out_dir / "metrics.json", "w") as fh:
+        json.dump(dataset_metrics, fh, indent=2)
+
+    return dataset_metrics
 
 
 def _train_test_split(
@@ -263,86 +350,43 @@ def main(cfg: DictConfig) -> None:
     mlflow.set_tracking_uri(mlflow_uri)
     mlflow.set_experiment("cdade_baselines")
 
-    logger.info("Loading injected data from %s", _INJECTED_DIR)
-    counts, mask = _load_injected_data()
-
-    X_train, X_val, X_test, y_train, y_val, y_test = _train_test_split(counts, mask)
-    logger.info(
-        "Split: train=%d val=%d test=%d anomaly_rate=%.2f%%",
-        len(X_train),
-        len(X_val),
-        len(X_test),
-        100 * y_test.mean(),
-    )
-
-    _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    from cdade.data.dataset_paths import _iter_datasets
 
     all_metrics: dict[str, dict] = {}
 
     with mlflow.start_run(run_name=f"baselines_seed{seed}"):
         mlflow.log_param("seed", seed)
-        mlflow.log_param("n_train", len(X_train))
-        mlflow.log_param("n_val", len(X_val))
-        mlflow.log_param("n_test", len(X_test))
 
-        # B1 — operates on univariate series; y_test for single series
-        try:
-            b1_scores, b1_params = _run_b1(counts, cfg)
-            # Align length with test set (B1 is univariate)
-            n_b1 = min(len(b1_scores), len(y_test))
-            b1_metrics = _log_baseline("b1_farrington", b1_scores[:n_b1], y_test[:n_b1], b1_params)
-            all_metrics["b1_farrington"] = b1_metrics
-            np.save(_RESULTS_DIR / "b1_scores.npy", b1_scores)
-        except Exception as exc:
-            logger.warning("B1 failed: %s", exc)
+        for dataset_name, artifact_paths in _iter_datasets(cfg, project_root=_PROJECT_ROOT):
+            counts_path = artifact_paths["injected_counts"]
+            mask_path = artifact_paths["mask"]
+            if not counts_path.exists():
+                raise FileNotFoundError(
+                    f"Injected data not found at {counts_path}. "
+                    "Run `just data` or `uv run dvc repro inject` first."
+                )
+            counts = pd.read_parquet(counts_path)
+            mask = pd.read_parquet(mask_path)
 
-        # B2
-        try:
-            b2_scores, b2_params = _run_b2(X_train, X_val, y_val, X_test, cfg)
-            b2_metrics = _log_baseline("b2_best_single", b2_scores, y_test, b2_params)
-            all_metrics["b2_best_single"] = b2_metrics
-            np.save(_RESULTS_DIR / "b2_scores.npy", b2_scores)
-        except Exception as exc:
-            logger.warning("B2 failed: %s", exc)
+            dataset_out = _PROJECT_ROOT / "results" / "baselines" / dataset_name
+            dataset_metrics = _run_baselines_for_dataset(
+                dataset_name, counts, mask, cfg, dataset_out
+            )
+            all_metrics[dataset_name] = dataset_metrics
 
-        # B3
-        try:
-            b3_scores, b3_params = _run_b3(X_train, X_test, cfg)
-            b3_metrics = _log_baseline("b3_ensemble_average", b3_scores, y_test, b3_params)
-            all_metrics["b3_ensemble_average"] = b3_metrics
-            np.save(_RESULTS_DIR / "b3_scores.npy", b3_scores)
-        except Exception as exc:
-            logger.warning("B3 failed: %s", exc)
+            mlflow.log_param(f"{dataset_name}_n_train", int(len(counts) * 0.6))
 
-        # B4
-        try:
-            b4_scores, b4_params = _run_b4(X_train, X_val, y_val, X_test, cfg)
-            b4_metrics = _log_baseline("b4_static_topk", b4_scores, y_test, b4_params)
-            all_metrics["b4_static_topk"] = b4_metrics
-            np.save(_RESULTS_DIR / "b4_scores.npy", b4_scores)
-        except Exception as exc:
-            logger.warning("B4 failed: %s", exc)
+    # DVC-consumed top-level metric file
+    metrics_path = _PROJECT_ROOT / "results" / "baselines_metrics.json"
+    metrics_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(metrics_path, "w") as fh:
+        json.dump(all_metrics, fh, indent=2)
 
-        # B5
-        try:
-            b5_scores, b5_params = _run_b5(X_train, X_test, cfg)
-            b5_metrics = _log_baseline("b5_reconciliation_evt", b5_scores, y_test, b5_params)
-            all_metrics["b5_reconciliation_evt"] = b5_metrics
-            np.save(_RESULTS_DIR / "b5_scores.npy", b5_scores)
-        except Exception as exc:
-            logger.warning("B5 failed: %s", exc)
-
-        # Summary metric file consumed by DVC
-        metrics_path = _PROJECT_ROOT / "results" / "baselines_metrics.json"
-        with open(metrics_path, "w") as fh:
-            json.dump(all_metrics, fh, indent=2)
-        mlflow.log_artifact(str(metrics_path))
-
-    logger.info("Baseline results written to %s", _RESULTS_DIR)
-    print("\n=== Baselines Complete ===")
-    for name, m in all_metrics.items():
-        print(f"  {name}: F1={m.get('f1', 'N/A'):.3f}  AUC-PR={m.get('auc_pr', 'N/A'):.3f}")
-    print("===\n")
+    logger.info("Baseline results written to %s", _PROJECT_ROOT / "results" / "baselines")
+    for ds, ds_metrics in all_metrics.items():
+        print(f"\n=== {ds} Baselines ===")
+        for name, m in ds_metrics.items():
+            print(f"  {name}: F1={m.get('f1', 'N/A'):.3f}  AUC-PR={m.get('auc_pr', 'N/A'):.3f}")
 
 
 if __name__ == "__main__":

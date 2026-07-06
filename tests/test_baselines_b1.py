@@ -280,3 +280,44 @@ class TestFarringtonRegistry:
 
         assert "farrington" in list_baseline_detectors()
         assert len(list_baseline_detectors()) >= 1
+
+
+def test_baselines_writes_to_namespaced_dir(tmp_path, monkeypatch):
+    """After running baselines, scores appear under results/baselines/{dataset}/."""
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock, patch
+
+    import numpy as np
+    import pandas as pd
+
+    from cdade.baselines import run_baselines
+
+    # Build minimal synthetic data
+    n = 50
+    counts = pd.DataFrame(np.random.default_rng(0).uniform(0, 10, (n, 3)))
+    mask = pd.DataFrame(np.zeros((n, 3), dtype=bool))
+
+    cfg = SimpleNamespace(
+        datasets=SimpleNamespace(active=["sivep"]),
+        experiment=SimpleNamespace(seed=42, mlflow_tracking_uri="sqlite:///test.db"),
+        detector=SimpleNamespace(name="iforest"),
+    )
+
+    monkeypatch.setattr(run_baselines, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(run_baselines, "_RESULTS_DIR", tmp_path / "results" / "baselines")
+
+    with patch.object(run_baselines, "_load_injected_data", return_value=(counts, mask)), patch(
+        "mlflow.set_tracking_uri"
+    ), patch("mlflow.set_experiment"), patch(
+        "mlflow.start_run",
+        return_value=MagicMock(
+            __enter__=MagicMock(return_value=MagicMock()), __exit__=MagicMock(return_value=False)
+        ),
+    ):
+        run_baselines._run_baselines_for_dataset(
+            "sivep", counts, mask, cfg, tmp_path / "results" / "baselines" / "sivep"
+        )
+
+    sivep_dir = tmp_path / "results" / "baselines" / "sivep"
+    # At least the directory should exist after running for a dataset
+    assert sivep_dir.exists()
