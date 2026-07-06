@@ -52,6 +52,7 @@ stages:
       - data/injected
     params:
       - experiment.seed
+      - datasets.active
     metrics:
       - results/baselines_metrics.json:
           cache: false
@@ -65,6 +66,8 @@ stages:
       - cdade/registry.py
       - configs
       - data/injected
+    params:
+      - datasets.active
     outs:
       - results/detectors
 
@@ -74,6 +77,8 @@ stages:
       - cdade/reconciliation
       - configs
       - results/detectors
+    params:
+      - datasets.active
     outs:
       - results/reconciliation
 
@@ -83,6 +88,8 @@ stages:
       - cdade/selection
       - configs
       - results/reconciliation
+    params:
+      - datasets.active
     outs:
       - results/selection
 
@@ -109,8 +116,11 @@ stages:
     params:
       - evaluation.test_frac
       - evaluation.nab_window
+      - datasets.active
     metrics:
-      - results/metrics.json:
+      - results/metrics/sivep/metrics.json:
+          cache: false
+      - results/metrics/tycho/metrics.json:
           cache: false
     outs:
       - results/evaluation
@@ -119,7 +129,7 @@ stages:
     cmd: uv run python -m cdade.evaluation.stats
     deps:
       - cdade/evaluation/stats.py
-      - results/metrics.json
+      - results/metrics
     outs:
       - results/stats
 
@@ -131,5 +141,7 @@ stages:
       - configs
       - results/selection
       - data/injected
+    params:
+      - datasets.active
     outs:
       - results/ablation
