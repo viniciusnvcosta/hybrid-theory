@@ -3,6 +3,7 @@ defaults:
   - detector: iforest
   - reconciliation: bottom_up
   - selection: meta_des
+  - evaluation: default
   - experiment: default
   - _self_
 

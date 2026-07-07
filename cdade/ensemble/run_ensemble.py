@@ -3,12 +3,16 @@
 This orchestrates the complete L1→L2→L3 pipeline and logs results.
 """
 
+from pathlib import Path
+
 from hydra import compose, initialize_config_dir
 
-from cdade.ensemble import run_ensemble
+from cdade.ensemble.cdade import run_ensemble
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # Initialize Hydra
-with initialize_config_dir(config_dir="configs", version_base=None):
+with initialize_config_dir(config_dir=str(_PROJECT_ROOT / "configs"), version_base=None):
     cfg = compose(config_name="config")
 
 # Run pipeline

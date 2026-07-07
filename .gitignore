@@ -222,3 +222,6 @@ __marimo__/
 
 # Agents
 .claude/**
+
+mlruns
+results

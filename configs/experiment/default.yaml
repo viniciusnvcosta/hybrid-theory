@@ -2,4 +2,4 @@
 experiment:
   name: default
   seed: 42
-  mlflow_tracking_uri: results/mlruns
+  mlflow_tracking_uri: sqlite:///results/mlruns.db

@@ -249,9 +249,8 @@ def main(cfg: DictConfig) -> None:
             logger.info("[%s] Writing per-method CSV files to %s", dataset_name, eval_dir)
             save_per_method_csvs(all_metrics, eval_dir)
 
-            # MLflow nested run per dataset
+            # MLflow nested run per dataset (log dataset param in parent run, not nested)
             with mlflow.start_run(run_name=dataset_name, nested=True):
-                mlflow.log_param("dataset", dataset_name)
                 mlflow.log_metric("n_test", len(y_test))
                 mlflow.log_metric("anomaly_rate_test", float(y_test.mean()))
                 for method, metrics in all_metrics.items():

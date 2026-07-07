@@ -54,7 +54,9 @@ def log_experiment(
         if selection_history:
             log_artifact("selection_history.json", selection_history)
 
-        logger.info(f"Logged MLflow run: {mlflow.get_active_run().info.run_id}")
+        active_run = mlflow.active_run()
+        if active_run is not None:
+            logger.info(f"Logged MLflow run: {active_run.info.run_id}")
     except Exception as e:
         logger.warning(f"Failed to log to MLflow: {e}")
         # Don't raise - MLflow logging is best-effort

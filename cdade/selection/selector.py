@@ -69,6 +69,9 @@ class MetaDESSelector:
         n_detectors = len(competence)
         k = min(self.k, n_detectors)
 
+        if n_detectors == 0:
+            return np.array([], dtype=int)
+
         if n_detectors == 1:
             return np.array([0])
 

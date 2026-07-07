@@ -6,11 +6,14 @@ MLflow tracking and result aggregation.
 
 from __future__ import annotations
 
+import json
 import logging
+from pathlib import Path
 from typing import Any
 
 import mlflow
 import numpy as np
+import pandas as pd
 from omegaconf import DictConfig
 
 from cdade.detectors.run_detect import run_detect
@@ -19,6 +22,25 @@ from cdade.reconciliation.run_reconcile import run_reconcile
 from cdade.selection.run_select import run_select
 
 logger = logging.getLogger(__name__)
+
+
+def _json_default(value: Any) -> Any:
+    """Convert numpy and other non-JSON-native values to JSON-safe types."""
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, pd.DataFrame):
+        return value.to_dict(orient="records")
+    if isinstance(value, pd.Series):
+        return value.to_dict()
+    if isinstance(value, np.integer | np.floating):
+        return value.item()
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, dict):
+        return {str(k): v for k, v in value.items()}
+    if isinstance(value, list | tuple):
+        return list(value)
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
 class CDADEOrchestrator:
@@ -76,6 +98,12 @@ class CDADEOrchestrator:
         self._log_to_mlflow(metrics)
 
         logger.info("CDADE pipeline complete")
+        output_dir = Path("results/ensemble")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        summary = json.loads(json.dumps(self.results, default=_json_default))
+        (output_dir / "ensemble_summary.json").write_text(json.dumps(summary, indent=2))
+        metrics_path = Path("results/ensemble_metrics.json")
+        metrics_path.write_text(json.dumps(self._aggregate_metrics(), indent=2))
         return self.results
 
     def _aggregate_metrics(self) -> dict[str, Any]:
@@ -130,10 +158,6 @@ class CDADEOrchestrator:
         """
         try:
             with mlflow.start_run():
-                # Log parameters
-                log_experiment(self.cfg)
-
-                # Log metrics
                 log_experiment(
                     cfg=self.cfg,
                     metrics=metrics,
