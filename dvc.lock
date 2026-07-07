@@ -108,3 +108,268 @@ stages:
       hash: md5
       md5: 2af3dca102638c5e5dcaee5f65835f67
       size: 34308
+  baselines:
+    cmd: uv run python -m cdade.baselines.run_baselines
+    deps:
+    - path: cdade/baselines
+      hash: md5
+      md5: f068c85316014f4a162a2490567523c8.dir
+      size: 149429
+      nfiles: 16
+    - path: configs
+      hash: md5
+      md5: 839588f22938fb8aaaa4d1a5dcbab92f.dir
+      size: 2918
+      nfiles: 25
+    - path: data/injected
+      hash: md5
+      md5: b3be96124acbe089bac1e364b8e24d0e.dir
+      size: 487591
+      nfiles: 6
+    params:
+      params.yaml:
+        datasets.active:
+        - sivep
+        - tycho
+        experiment.seed: 42
+    outs:
+    - path: results/baselines
+      hash: md5
+      md5: e4b299bad6fcdab9f21d1ef2e0c672cd.dir
+      size: 9039
+      nfiles: 11
+    - path: results/baselines_metrics.json
+      hash: md5
+      md5: 1d352ce2f96098995299d6ab53c2b383
+      size: 1637
+  detect:
+    cmd: uv run python -m cdade.detectors.run_detect
+    deps:
+    - path: cdade/detectors
+      hash: md5
+      md5: b6cea7b621dcf0ee9d02ce5370e484aa.dir
+      size: 54246
+      nfiles: 24
+    - path: cdade/registry.py
+      hash: md5
+      md5: 051c13249b039110646684b8566698e5
+      size: 3970
+    - path: configs
+      hash: md5
+      md5: 839588f22938fb8aaaa4d1a5dcbab92f.dir
+      size: 2918
+      nfiles: 25
+    - path: data/injected
+      hash: md5
+      md5: b3be96124acbe089bac1e364b8e24d0e.dir
+      size: 487591
+      nfiles: 6
+    params:
+      params.yaml:
+        datasets.active:
+        - sivep
+        - tycho
+    outs:
+    - path: results/detectors
+      hash: md5
+      md5: 791fb51e466b2f42f770bdc3925079f3.dir
+      size: 43557
+      nfiles: 4
+  reconcile:
+    cmd: uv run python -m cdade.reconciliation.run_reconcile
+    deps:
+    - path: cdade/reconciliation
+      hash: md5
+      md5: 5b7abea443531bb0d634336b17db2a1c.dir
+      size: 35971
+      nfiles: 15
+    - path: configs
+      hash: md5
+      md5: 839588f22938fb8aaaa4d1a5dcbab92f.dir
+      size: 2918
+      nfiles: 25
+    - path: results/detectors
+      hash: md5
+      md5: 791fb51e466b2f42f770bdc3925079f3.dir
+      size: 43557
+      nfiles: 4
+    params:
+      params.yaml:
+        datasets.active:
+        - sivep
+        - tycho
+    outs:
+    - path: results/reconciliation
+      hash: md5
+      md5: 070e055a9ca52765acc17e2678ff6901.dir
+      size: 53253
+      nfiles: 8
+  select:
+    cmd: uv run python -m cdade.selection.run_select
+    deps:
+    - path: cdade/selection
+      hash: md5
+      md5: 245ff5652432fa392628802b11592f90.dir
+      size: 76717
+      nfiles: 14
+    - path: configs
+      hash: md5
+      md5: 839588f22938fb8aaaa4d1a5dcbab92f.dir
+      size: 2918
+      nfiles: 25
+    - path: results/reconciliation
+      hash: md5
+      md5: 070e055a9ca52765acc17e2678ff6901.dir
+      size: 53253
+      nfiles: 8
+    params:
+      params.yaml:
+        datasets.active:
+        - sivep
+        - tycho
+    outs:
+    - path: results/selection
+      hash: md5
+      md5: 8acab73b7b72d954511528cd4097cf3d.dir
+      size: 82970
+      nfiles: 18
+  ensemble:
+    cmd: uv run python -m cdade.ensemble.run_ensemble
+    deps:
+    - path: cdade/ensemble
+      hash: md5
+      md5: cbe20d604b27b4465f8db6026854e084.dir
+      size: 29599
+      nfiles: 8
+    - path: configs
+      hash: md5
+      md5: 839588f22938fb8aaaa4d1a5dcbab92f.dir
+      size: 2918
+      nfiles: 25
+    - path: data/injected
+      hash: md5
+      md5: b3be96124acbe089bac1e364b8e24d0e.dir
+      size: 487591
+      nfiles: 6
+    - path: results/selection
+      hash: md5
+      md5: 8acab73b7b72d954511528cd4097cf3d.dir
+      size: 82970
+      nfiles: 18
+    outs:
+    - path: results/ensemble
+      hash: md5
+      md5: 1562a522c19035e97938aba1114767e2.dir
+      size: 24121
+      nfiles: 1
+    - path: results/ensemble_metrics.json
+      hash: md5
+      md5: 887dca4a1a181e4b94782280f7b5dfc4
+      size: 77
+  evaluate:
+    cmd: uv run python -m cdade.evaluation.run_evaluate
+    deps:
+    - path: cdade/evaluation
+      hash: md5
+      md5: 6776bd5c1383dcab005d030699b59fbf.dir
+      size: 83979
+      nfiles: 14
+    - path: configs
+      hash: md5
+      md5: 839588f22938fb8aaaa4d1a5dcbab92f.dir
+      size: 2918
+      nfiles: 25
+    - path: data/injected
+      hash: md5
+      md5: b3be96124acbe089bac1e364b8e24d0e.dir
+      size: 487591
+      nfiles: 6
+    - path: results/selection
+      hash: md5
+      md5: 8acab73b7b72d954511528cd4097cf3d.dir
+      size: 82970
+      nfiles: 18
+    params:
+      params.yaml:
+        datasets.active:
+        - sivep
+        - tycho
+        evaluation.nab_window: 4
+        evaluation.test_frac: 0.2
+    outs:
+    - path: results/evaluation
+      hash: md5
+      md5: 1404b80bb09e3c3eef1296e6cb2675bb.dir
+      size: 1125
+      nfiles: 11
+    - path: results/metrics/sivep/metrics.json
+      hash: md5
+      md5: 5648f3205683e6973d03afea8b08cea1
+      size: 948
+    - path: results/metrics/tycho/metrics.json
+      hash: md5
+      md5: f781b56649df69fa5b54f636d3ad00d6
+      size: 869
+  stats:
+    cmd: uv run python -m cdade.evaluation.stats
+    deps:
+    - path: cdade/evaluation
+      hash: md5
+      md5: 6776bd5c1383dcab005d030699b59fbf.dir
+      size: 83979
+      nfiles: 14
+    - path: configs
+      hash: md5
+      md5: 839588f22938fb8aaaa4d1a5dcbab92f.dir
+      size: 2918
+      nfiles: 25
+    - path: results/metrics
+      hash: md5
+      md5: fc82a81b016c9e39c160b644ed2221eb.dir
+      size: 1817
+      nfiles: 2
+    outs:
+    - path: results/stats
+      hash: md5
+      md5: 5a9f944b1e8d81f87b9b92333bc93493.dir
+      size: 1193
+      nfiles: 5
+  ablation:
+    cmd: uv run python -m cdade.ablation.run_ablation
+    deps:
+    - path: cdade/ablation
+      hash: md5
+      md5: 88a7d8f366024a294ab634529654f004.dir
+      size: 19560
+      nfiles: 4
+    - path: cdade/evaluation
+      hash: md5
+      md5: 6776bd5c1383dcab005d030699b59fbf.dir
+      size: 83979
+      nfiles: 14
+    - path: configs
+      hash: md5
+      md5: 839588f22938fb8aaaa4d1a5dcbab92f.dir
+      size: 2918
+      nfiles: 25
+    - path: data/injected
+      hash: md5
+      md5: b3be96124acbe089bac1e364b8e24d0e.dir
+      size: 487591
+      nfiles: 6
+    - path: results/selection
+      hash: md5
+      md5: 8acab73b7b72d954511528cd4097cf3d.dir
+      size: 82970
+      nfiles: 18
+    params:
+      params.yaml:
+        datasets.active:
+        - sivep
+        - tycho
+    outs:
+    - path: results/ablation
+      hash: md5
+      md5: 13c4b37b615702327e679546012ab6e6.dir
+      size: 1883
+      nfiles: 9
