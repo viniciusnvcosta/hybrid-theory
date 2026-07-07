@@ -1,4 +1,4 @@
 test_frac: 0.2
 nab_window: 4
-metrics_path: results/metrics.json
+metrics_path: results/metrics
 stats_dir: results/stats
