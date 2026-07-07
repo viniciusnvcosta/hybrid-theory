@@ -128,7 +128,8 @@ stages:
   stats:
     cmd: uv run python -m cdade.evaluation.stats
     deps:
-      - cdade/evaluation/stats.py
+      - cdade/evaluation
+      - configs
       - results/metrics
     outs:
       - results/stats
