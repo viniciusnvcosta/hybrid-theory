@@ -11,23 +11,81 @@ format:
 
 ## Experiment summary
 
-The current run completed the full DVC workflow and generated evaluation outputs from the injected SIVEP-based experiment. The results are stored in results/metrics.json and the per-method summaries under results/evaluation.
+The current run completed the full DVC workflow and generated evaluation outputs from the injected SIVEP and Tycho experiments. Per-dataset metrics are stored under results/metrics/{dataset}/metrics.json and the per-method summaries under results/evaluation/{dataset}/.
 
-## Metrics summary
+## Metrics across datasets
 
-| Method | AUC-PR | NAB | Precision | Recall | F1 |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| CDADE | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| B1 Farrington | 1.000 | 0.000 | 1.000 | 0.500 | 0.667 |
-| B2 Best single | 1.000 | 1.000 | 1.000 | 0.538 | 0.700 |
-| B3 Ensemble average | 1.000 | 0.000 | 1.000 | 0.500 | 0.667 |
-| B4 Static top-k | 1.000 | 0.000 | 1.000 | 0.500 | 0.667 |
-| B5 Reconciliation + EVT | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+```{python}
+#| label: fig-metrics-heatmap
+#| fig-cap: "AUC-PR per method and dataset. Darker = higher AUC-PR."
+import pathlib, sys
+import numpy as np
+import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(pathlib.Path("..").resolve()))
+from cdade.evaluation.stats_matrix import _build_auc_pr_matrix_from_dir
+
+metrics_dir = pathlib.Path("../results/metrics")
+mat, method_names, dataset_names = _build_auc_pr_matrix_from_dir(metrics_dir)
+
+fig, ax = plt.subplots(figsize=(max(6, len(method_names) * 0.9), max(2, len(dataset_names) * 0.7)))
+im = ax.imshow(mat, vmin=0, vmax=1, cmap="YlGn", aspect="auto")
+ax.set_xticks(range(len(method_names))); ax.set_xticklabels(method_names, rotation=40, ha="right")
+ax.set_yticks(range(len(dataset_names))); ax.set_yticklabels(dataset_names)
+plt.colorbar(im, ax=ax, label="AUC-PR")
+for i in range(len(dataset_names)):
+    for j in range(len(method_names)):
+        ax.text(j, i, f"{mat[i, j]:.2f}", ha="center", va="center", fontsize=8,
+                color="black" if mat[i, j] < 0.7 else "white")
+plt.tight_layout()
+plt.show()
+```
 
 ## Statistical comparison
 
-The statistical stage was executed, but the protocol stopped early because the current experiment only includes one dataset. The Friedman test therefore reported that a multi-dataset comparison was not meaningful, and the downstream Wilcoxon, Diebold-Mariano, and Cliff's delta outputs were written as placeholders with non-informative values. This is consistent with the README's intended protocol, which requires multiple datasets to make the hypothesis-testing procedure meaningful.
+```{python}
+#| label: fig-cd-diagram
+#| fig-cap: "Critical-difference diagram. Methods connected by a bar are not significantly different (Wilcoxon + Bonferroni α=0.05)."
+import json, pathlib
+import numpy as np
+from scipy.stats import rankdata
+
+wilcoxon_path = pathlib.Path("../results/stats/wilcoxon.json")
+
+if len(dataset_names) < 2:
+    print("CD diagram requires ≥2 datasets. Only one dataset available.")
+else:
+    ranks = np.apply_along_axis(lambda r: rankdata(-r), 1, mat)
+    mean_ranks = ranks.mean(axis=0)
+
+    wilcoxon = json.loads(wilcoxon_path.read_text()) if wilcoxon_path.exists() else {}
+    nonsig_pairs = [
+        (k.split(" vs ")[0].strip(), k.split(" vs ")[1].strip())
+        for k, v in wilcoxon.items()
+        if not v.get("significant", True)
+    ]
+
+    fig, ax = plt.subplots(figsize=(max(7, len(method_names)), 2.5))
+    ax.set_xlim(0.8, len(method_names) + 0.2)
+    ax.axhline(1, color="black", linewidth=1.5)
+    for i, (name, rank) in enumerate(zip(method_names, mean_ranks)):
+        ax.plot(rank, 1, "o", color="#2c7bb6", markersize=8)
+        va = "bottom" if i % 2 == 0 else "top"
+        ax.text(rank, 1, f"  {name}\n  ({rank:.2f})", ha="center", va=va, fontsize=8)
+    for (m1, m2) in nonsig_pairs:
+        if m1 in method_names and m2 in method_names:
+            r1 = mean_ranks[method_names.index(m1)]
+            r2 = mean_ranks[method_names.index(m2)]
+            ax.plot([min(r1, r2), max(r1, r2)], [1.15, 1.15], "-", color="#d7191c", linewidth=3)
+    ax.set_xlabel("Mean rank (1 = best)")
+    ax.set_yticks([])
+    ax.spines[["left", "top", "right"]].set_visible(False)
+    plt.tight_layout()
+    plt.show()
+```
+
+The statistical stage now runs both SIVEP and Tycho, feeding a real `(2, n_methods)` AUC-PR matrix into the Friedman omnibus test (see `results/stats/friedman.json`). With only two datasets and six comparable methods, the current run is not significant (`stat=3.0`, `p=0.558`), so the protocol correctly stops before Wilcoxon, Diebold-Mariano, and Cliff's delta are treated as confirmatory — those outputs are still written (see the effect-size summary in the ablation report) but should be read as exploratory until more datasets are added to the active set.
 
 ## Interpretation
 
-On this first end-to-end run, CDADE and B5 matched the strongest observed performance on the injected dataset. The results support the implementation workflow and the report structure described in the README, but they should be interpreted as a reproducibility smoke test rather than a final multi-dataset claim.
+On this first two-dataset run, CDADE matched or exceeded the strongest baselines on both SIVEP and Tycho, but the Friedman test found no statistically significant difference across methods given only two datasets. The results support the implementation workflow and the report structure described in the README; a larger active dataset set will be needed before the Friedman → Wilcoxon → Diebold-Mariano → Cliff's delta protocol can produce a confirmatory ranking.

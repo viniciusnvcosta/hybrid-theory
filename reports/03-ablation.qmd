@@ -22,6 +22,40 @@ The ablation workflow evaluates the same experiment under four variants: the ful
 | No dynamic selection | 0.9924 | 0.0000 | 0.9924 | 1.0000 | 0.9962 |
 | No diversity | 0.9924 | 0.0000 | 0.9924 | 1.0000 | 0.9962 |
 
+## Effect-size summary (CDADE vs baselines)
+
+```{python}
+#| label: fig-cliffs-delta
+#| fig-cap: "Cliff's δ effect size (CDADE vs each baseline). Bars show 95% bootstrap CI. Vertical dashed line at δ=0."
+import json, pathlib, matplotlib.pyplot as plt, numpy as np
+
+cliffs_path = pathlib.Path("../results/stats/cliffs_delta.json")
+if not cliffs_path.exists():
+    print("cliffs_delta.json not found — run `uv run dvc repro stats` first.")
+else:
+    data = json.loads(cliffs_path.read_text())
+    baselines = list(data.keys())
+    deltas = [data[b]["delta"] for b in baselines]
+    ci_lo = [data[b]["ci_lower"] for b in baselines]
+    ci_hi = [data[b]["ci_upper"] for b in baselines]
+    mags = [data[b]["magnitude"] for b in baselines]
+
+    colours = {"negligible": "#aec7e8", "small": "#ffbb78",
+               "medium": "#98df8a", "large": "#ff9896"}
+    fig, ax = plt.subplots(figsize=(7, max(2.5, len(baselines) * 0.55)))
+    y = np.arange(len(baselines))
+    for i, (b, d, lo, hi, mag) in enumerate(zip(baselines, deltas, ci_lo, ci_hi, mags)):
+        ax.barh(i, hi - lo, left=lo, height=0.4, color=colours.get(mag, "grey"), alpha=0.8)
+        ax.plot(d, i, "D", color="black", markersize=5)
+    ax.axvline(0, color="grey", linestyle="--", linewidth=1)
+    ax.set_yticks(y)
+    ax.set_yticklabels([f"{b}  ({m})" for b, m in zip(baselines, mags)])
+    ax.set_xlabel("Cliff's δ  (positive = CDADE better)")
+    ax.set_xlim(-1.05, 1.05)
+    plt.tight_layout()
+    plt.show()
+```
+
 ## Interpretation
 
 The current injected dataset did not separate the variants clearly. All ablation configurations produced nearly identical scores, so the experiment does not yet provide evidence that any single component is responsible for the observed gains. This is an expected outcome for an early run and highlights the need for more diverse datasets and stronger anomaly regimes in future experiments.
