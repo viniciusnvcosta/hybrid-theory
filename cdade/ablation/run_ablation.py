@@ -6,7 +6,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import hydra
@@ -15,6 +14,7 @@ import numpy as np
 import pandas as pd
 from omegaconf import DictConfig
 
+from cdade.data.dataset_paths import get_dataset_artifact_paths
 from cdade.evaluation.metrics import compute_all_metrics
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ _INJECTED_DIR = _PROJECT_ROOT / "data" / "injected"
 _RESULTS_DIR = _PROJECT_ROOT / "results"
 
 
-def load_variant_ground_truth(injected_dir: Path) -> np.ndarray:
+def load_variant_ground_truth(cfg: DictConfig, injected_dir: Path) -> np.ndarray:
     """Load binary anomaly mask and aggregate to time-series labels.
 
     Args:
@@ -36,7 +36,8 @@ def load_variant_ground_truth(injected_dir: Path) -> np.ndarray:
     Raises:
         FileNotFoundError: If mask file not found.
     """
-    mask_path = injected_dir / "sivep_counts_mask.parquet"
+    artifact_paths = get_dataset_artifact_paths(cfg, project_root=_PROJECT_ROOT)
+    mask_path = artifact_paths["mask"]
 
     if not mask_path.exists():
         raise FileNotFoundError(
@@ -130,62 +131,48 @@ def compute_variant_metrics(
     return metrics
 
 
-def run_ablation_variants(results_dir: Path | None = None) -> dict[str, dict]:
-    """Run ablation study over all variants.
-
-    Loads pre-computed blended scores from results/selection/blended_scores.csv,
-    applies variant-specific transformations, and computes metrics for each.
+def run_ablation_variants(
+    cfg: Any,
+    dataset_name: str,
+    y_true: np.ndarray,
+    blended_scores: np.ndarray,
+    results_dir: Path,
+) -> dict[str, dict]:
+    """Run ablation study over all variants for one dataset.
 
     Args:
-        results_dir: Results directory (default: _RESULTS_DIR).
+        cfg: Config-like object with cfg.selection.k and cfg.selection.alpha.
+        dataset_name: Name of the dataset being processed.
+        y_true: Ground truth labels for the full dataset.
+        blended_scores: Shape [n_timesteps, n_detectors] pre-loaded scores.
+        results_dir: Root results directory.
 
     Returns:
         Dict mapping variant name to metrics dict.
     """
-    if results_dir is None:
-        results_dir = _RESULTS_DIR
+    test_frac = getattr(getattr(cfg, "evaluation", None), "test_frac", 0.2)
+    nab_window = getattr(getattr(cfg, "evaluation", None), "nab_window", 4)
+    n_test = int(len(y_true) * test_frac)
+    y_test = y_true[-n_test:]
 
-    results_dir = Path(results_dir)
-    ablation_dir = results_dir / "ablation"
+    ablation_dir = results_dir / "ablation" / dataset_name
     ablation_dir.mkdir(parents=True, exist_ok=True)
-
-    logger.info("Loading ground truth from %s", _INJECTED_DIR)
-    y_true = load_variant_ground_truth(_INJECTED_DIR)
-
-    logger.info("Loading blended scores from %s", results_dir / "selection")
-    blended_path = results_dir / "selection" / "blended_scores.csv"
-    blended_scores = load_variant_blended_scores(blended_path, len(y_true))
-
-    # Create a minimal config object for variant transformations
-    # Use a simple namespace for a minimal, mutable config-like object
-    cfg = SimpleNamespace()
-    cfg.selection = SimpleNamespace(k=5, alpha=0.5)
 
     variants = ["full", "no_reconciliation", "no_dynamic_selection", "no_diversity"]
     all_metrics = {}
 
     for variant in variants:
-        logger.info("Processing variant: %s", variant)
-
-        # Apply variant transformation
+        logger.info("[%s] Processing variant: %s", dataset_name, variant)
         variant_scores = apply_variant_transformation(blended_scores, variant, cfg)
-
-        # Compute metrics
-        metrics = compute_variant_metrics(y_true, variant_scores, nab_window=4)
+        # Use test portion only
+        variant_test = variant_scores[-n_test:]
+        metrics = compute_variant_metrics(y_test, variant_test, nab_window=nab_window)
         all_metrics[variant] = metrics
 
-        # Write variant metrics to JSON
         variant_file = ablation_dir / f"{variant}_metrics.json"
         with open(variant_file, "w", encoding="utf-8") as fh:
             json.dump(metrics, fh, indent=2)
-        logger.info("Metrics written to %s", variant_file)
-
-    # Write summary CSV
-    summary_df = pd.DataFrame(all_metrics).T
-    summary_df.insert(0, "variant", summary_df.index)
-    summary_path = ablation_dir / "summary.csv"
-    summary_df.to_csv(summary_path, index=False)
-    logger.info("Summary written to %s", summary_path)
+        logger.info("[%s] Metrics written to %s", dataset_name, variant_file)
 
     return all_metrics
 
@@ -194,11 +181,10 @@ def _log_variant_to_mlflow(variant: str, metrics: dict[str, float]) -> None:
     """Log one variant's metrics to MLflow as a nested run.
 
     Args:
-        variant: Variant name.
+        variant: Variant name (used in run name, dataset_variant format).
         metrics: Metrics dict.
     """
     with mlflow.start_run(run_name=f"ablation_{variant}", nested=True):
-        mlflow.log_param("variant", variant)
         for key, value in metrics.items():
             mlflow.log_metric(key, value)
 
@@ -218,24 +204,53 @@ def main(cfg: DictConfig | None = None) -> None:
     if cfg is None:
         raise ValueError("Hydra configuration is required")
 
+    from cdade.data.dataset_paths import _iter_datasets
+
     mlflow_uri = cfg.experiment.mlflow_tracking_uri
     mlflow.set_tracking_uri(mlflow_uri)
     mlflow.set_experiment("cdade_ablation")
 
     logger.info("Starting ablation study")
-    all_metrics = run_ablation_variants(results_dir=_RESULTS_DIR)
+    combined_metrics: dict[str, dict[str, dict]] = {}
 
-    # Log to MLflow
     with mlflow.start_run(run_name="ablation_study"):
-        for variant, metrics in all_metrics.items():
-            _log_variant_to_mlflow(variant, metrics)
+        for dataset_name, artifact_paths in _iter_datasets(cfg, project_root=_PROJECT_ROOT):
+            mask_path = artifact_paths["mask"]
+            if not mask_path.exists():
+                raise FileNotFoundError(f"Ground truth mask not found at {mask_path}.")
+            mask_df = pd.read_parquet(mask_path)
+            y_true = mask_df.values.astype(int).max(axis=1)
+
+            blended_path = _RESULTS_DIR / "selection" / dataset_name / "blended_scores.csv"
+            blended_scores = load_variant_blended_scores(blended_path, len(y_true))
+
+            dataset_metrics = run_ablation_variants(
+                cfg, dataset_name, y_true, blended_scores, _RESULTS_DIR
+            )
+            combined_metrics[dataset_name] = dataset_metrics
+
+            for variant, metrics in dataset_metrics.items():
+                _log_variant_to_mlflow(f"{dataset_name}_{variant}", metrics)
+
+    # Write combined summary CSV
+    rows = []
+    for ds, variants in combined_metrics.items():
+        for variant, metrics in variants.items():
+            row = {"dataset": ds, "variant": variant}
+            row.update(metrics)
+            rows.append(row)
+    summary_df = pd.DataFrame(rows)
+    summary_path = _RESULTS_DIR / "ablation" / "summary.csv"
+    summary_df.to_csv(summary_path, index=False)
+    logger.info("Summary written to %s", summary_path)
 
     logger.info("Ablation complete")
-    print("\n=== Ablation Study Complete ===")
-    for variant, metrics in all_metrics.items():
-        auc_pr = metrics["auc_pr"]
-        nab = metrics["nab"]
-        logger.info("%s AUC-PR: %.4f  NAB: %.4f", variant, auc_pr, nab)
+    for ds, variants in combined_metrics.items():
+        print(f"\n=== {ds} Ablation ===")
+        for variant, metrics in variants.items():
+            logger.info(
+                "[%s] %s AUC-PR: %.4f NAB: %.4f", ds, variant, metrics["auc_pr"], metrics["nab"]
+            )
 
 
 if __name__ == "__main__":
