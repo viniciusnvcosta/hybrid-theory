@@ -281,9 +281,9 @@ def test_empty_detector_pool_writes_nonempty_blended_scores(tmp_path, monkeypatc
     from cdade.selection import run_select as selection_run
 
     repo_root = Path(__file__).resolve().parents[1]
-    recon_dir = repo_root / "results" / "reconciliation"
+    recon_dir = repo_root / "results" / "reconciliation" / "sivep"
     recon_dir.mkdir(parents=True, exist_ok=True)
-    out_dir = repo_root / "results" / "selection"
+    out_dir = repo_root / "results" / "selection" / "sivep"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     pd.DataFrame(index=np.arange(12)).to_csv(recon_dir / "leaf_forecasts_reconciled.csv")

@@ -50,7 +50,7 @@ def run_reconcile(cfg: DictConfig, dataset_name: str | None = None) -> dict:
         spec = json.load(f)
 
     detector_dir = _PROJECT_ROOT / "results" / "detectors" / dataset_name
-    leaf_forecasts = pd.read_csv(detector_dir / "leaf_forecasts.csv", index_col=0)
+    leaf_forecasts = pd.read_csv(detector_dir / "leaf_forecasts.csv")
 
     reconciler_name = cfg.reconciliation.name
     reconciler_cls = get_reconciler(reconciler_name)

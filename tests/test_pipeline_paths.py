@@ -60,7 +60,7 @@ def test_run_reconcile_writes_to_namespaced_dir(monkeypatch, tmp_path):
     (processed_dir / "hierarchy_sivep.json").write_text(json.dumps(hierarchy))
 
     scores_df = pd.DataFrame(np.random.default_rng(0).uniform(0, 1, (10, 2)), columns=["a", "b"])
-    scores_df.to_csv(det_dir / "leaf_forecasts.csv")
+    scores_df.to_csv(det_dir / "leaf_forecasts.csv", index=False)
 
     monkeypatch.setattr(rr_module, "_PROJECT_ROOT", tmp_path)
 
