@@ -19,7 +19,9 @@ def _build_auc_pr_matrix_from_dir(
     """Build AUC-PR matrix from all per-dataset metrics.json files.
 
     Loads one metrics.json per dataset subdirectory and stacks AUC-PR values
-    into a matrix suitable for multi-dataset hypothesis testing.
+    into a matrix suitable for multi-dataset hypothesis testing. Only methods
+    present in every dataset's metrics.json are included, since a baseline
+    can legitimately fail (and be omitted) on one dataset but not another.
 
     Args:
         metrics_dir: Directory containing `{dataset}/metrics.json` files.
@@ -43,7 +45,7 @@ def _build_auc_pr_matrix_from_dir(
             per_dataset.append(json.load(f))
         dataset_names.append(mf.parent.name)
 
-    method_names = sorted(per_dataset[0].keys())
+    method_names = sorted(set.intersection(*(set(d.keys()) for d in per_dataset)))
     auc_pr_matrix = np.array(
         [[m[method]["auc_pr"] for method in method_names] for m in per_dataset]
     )

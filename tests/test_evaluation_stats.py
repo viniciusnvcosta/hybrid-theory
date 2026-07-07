@@ -565,3 +565,41 @@ class TestMultiDatasetMatrixConstruction:
         assert matrix.shape == (1, 1)
         assert set(method_names) == {"cdade"}
         assert set(dataset_names) == {"sivep"}
+
+    def test_uses_intersection_when_a_method_is_missing_from_one_dataset(self, tmp_path):
+        """A baseline that failed (and was omitted) on one dataset is dropped from the matrix."""
+        from cdade.evaluation.stats_matrix import _build_auc_pr_matrix_from_dir
+
+        metrics_dir = tmp_path / "results" / "metrics"
+        full = {
+            "cdade": {
+                "auc_pr": 0.9,
+                "nab": 0.8,
+                "f1": 0.85,
+                "precision": 0.9,
+                "recall": 0.8,
+                "threshold": 0.5,
+            },
+            "b1": {
+                "auc_pr": 0.6,
+                "nab": 0.5,
+                "f1": 0.55,
+                "precision": 0.6,
+                "recall": 0.5,
+                "threshold": 0.5,
+            },
+        }
+        missing_b1 = {"cdade": full["cdade"]}
+
+        sivep_dir = metrics_dir / "sivep"
+        sivep_dir.mkdir(parents=True)
+        (sivep_dir / "metrics.json").write_text(json.dumps(full))
+
+        tycho_dir = metrics_dir / "tycho"
+        tycho_dir.mkdir(parents=True)
+        (tycho_dir / "metrics.json").write_text(json.dumps(missing_b1))
+
+        matrix, method_names, dataset_names = _build_auc_pr_matrix_from_dir(metrics_dir)
+        assert matrix.shape == (2, 1)
+        assert method_names == ["cdade"]
+        assert set(dataset_names) == {"sivep", "tycho"}
