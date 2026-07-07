@@ -1,5 +1,6 @@
 defaults:
   - dataset: sivep
+  - datasets: default
   - detector: iforest
   - reconciliation: bottom_up
   - selection: meta_des
