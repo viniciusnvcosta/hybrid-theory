@@ -4,9 +4,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 def _build_auc_pr_matrix_from_dir(
@@ -44,3 +48,24 @@ def _build_auc_pr_matrix_from_dir(
         [[m[method]["auc_pr"] for method in method_names] for m in per_dataset]
     )
     return auc_pr_matrix, method_names, dataset_names
+
+
+def _load_scores_for_dataset(
+    dataset_name: str, n_test: int = 26
+) -> tuple[np.ndarray | None, np.ndarray | None, dict[str, np.ndarray] | None]:
+    """Load raw scores (y_true, cdade_scores, baseline_scores) for a dataset."""
+    y_true = cdade_scores = baseline_scores = None
+    try:
+        mask_path = Path(f"data/injected/{dataset_name}_counts_mask.parquet")
+        if mask_path.exists():
+            y_true = pd.read_parquet(mask_path).max(axis=1).values[-n_test:]
+        blended_path = Path(f"results/selection/{dataset_name}/blended_scores.csv")
+        if blended_path.exists():
+            cdade_scores = pd.read_csv(blended_path, index_col=0).iloc[-n_test:].max(axis=1).values
+        baseline_dir = Path(f"results/baselines/{dataset_name}")
+        b_paths = sorted(baseline_dir.glob("b[1-5]_scores.npy"))
+        if b_paths:
+            baseline_scores = {p.stem.replace("_scores", ""): np.load(p)[-n_test:] for p in b_paths}
+    except Exception as e:
+        logger.warning("Could not load scores for %s: %s", dataset_name, e)
+    return y_true, cdade_scores, baseline_scores
