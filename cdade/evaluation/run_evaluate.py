@@ -22,11 +22,11 @@ _INJECTED_DIR = _PROJECT_ROOT / "data" / "injected"
 _RESULTS_DIR = _PROJECT_ROOT / "results"
 
 
-def load_ground_truth(injected_dir: Path) -> np.ndarray:
+def load_ground_truth(mask_path: Path) -> np.ndarray:
     """Load binary anomaly mask and aggregate to time-series labels.
 
     Args:
-        injected_dir: Path to injected data directory.
+        mask_path: Path to injected mask parquet file.
 
     Returns:
         1D numpy array of shape [n_timesteps] with binary labels (max across series).
@@ -34,8 +34,6 @@ def load_ground_truth(injected_dir: Path) -> np.ndarray:
     Raises:
         FileNotFoundError: If mask file not found.
     """
-    mask_path = injected_dir / "sivep_counts_mask.parquet"
-
     if not mask_path.exists():
         raise FileNotFoundError(
             f"Ground truth mask not found at {mask_path}. "
@@ -184,73 +182,91 @@ def _log_method_to_mlflow(method: str, metrics: dict[str, float]) -> None:
     version_base=None,
 )
 def main(cfg: DictConfig) -> None:
-    """Orchestrate evaluation of CDADE and baselines.
+    """Orchestrate evaluation of CDADE and baselines for all active datasets.
 
     Args:
         cfg: Hydra configuration from configs/config.yaml.
     """
+    from cdade.data.dataset_paths import _iter_datasets
+
     mlflow_uri = cfg.experiment.mlflow_tracking_uri
     mlflow.set_tracking_uri(mlflow_uri)
     mlflow.set_experiment("cdade_evaluation")
 
-    logger.info("Loading ground truth from %s", _INJECTED_DIR)
-    y_true = load_ground_truth(_INJECTED_DIR)
-
-    # Test/train split: last test_frac of data is test
     test_frac = cfg.evaluation.test_frac
-    n_test = int(len(y_true) * test_frac)
-    y_test = y_true[-n_test:]
-    logger.info(f"Test set size: {len(y_test)} (anomaly rate: {100 * y_test.mean():.1f}%)")
-
-    # Load CDADE scores
-    logger.info("Loading CDADE blended scores from %s", _RESULTS_DIR / "selection")
-    blended_path = _RESULTS_DIR / "selection" / "blended_scores.csv"
-    blended_df = load_blended_scores(blended_path, len(y_true))
-    cdade_test = blended_df.values[-n_test:].max(axis=1)
-
-    if len(cdade_test) != len(y_test):
-        raise ValueError(
-            f"CDADE scores/labels shape mismatch: {len(cdade_test)} vs {len(y_test)}. "
-            "Check if selection stage produced correct output."
-        )
-
-    # Load baselines
-    logger.info("Loading baseline scores from %s", _RESULTS_DIR / "baselines")
-    baselines = load_baseline_scores(_RESULTS_DIR / "baselines")
-
-    # Evaluate all methods
     nab_window = cfg.evaluation.nab_window
-    all_metrics = evaluate_all_methods(y_test, cdade_test, baselines, nab_window=nab_window)
 
-    # Write outputs
-    metrics_path = _RESULTS_DIR / "metrics.json"
-    save_metrics_json(all_metrics, metrics_path)
+    # Use _PROJECT_ROOT dynamically to support mocking in tests
+    results_dir = _PROJECT_ROOT / "results"
 
-    eval_dir = _RESULTS_DIR / "evaluation"
-    logger.info("Writing per-method CSV files to %s", eval_dir)
-    save_per_method_csvs(all_metrics, eval_dir)
-
-    # Log to MLflow
     with mlflow.start_run(run_name="evaluate"):
         mlflow.log_param("test_frac", test_frac)
         mlflow.log_param("nab_window", nab_window)
-        mlflow.log_metric("n_test", len(y_test))
-        mlflow.log_metric("anomaly_rate_test", float(y_test.mean()))
 
-        logger.info("Logging methods to MLflow")
-        for method, metrics in all_metrics.items():
-            _log_method_to_mlflow(method, metrics)
+        for dataset_name, artifact_paths in _iter_datasets(cfg, project_root=_PROJECT_ROOT):
+            logger.info("Evaluating dataset: %s", dataset_name)
 
-        mlflow.log_artifact(str(metrics_path))
+            # Ground truth
+            mask_path = artifact_paths["mask"]
+            if not mask_path.exists():
+                raise FileNotFoundError(
+                    f"Ground truth mask not found at {mask_path}. "
+                    "Run `just data` or `uv run dvc repro inject` first."
+                )
+            mask_df = pd.read_parquet(mask_path)
+            y_true = mask_df.values.astype(int).max(axis=1)
+            n_test = int(len(y_true) * test_frac)
+            y_test = y_true[-n_test:]
+            logger.info(
+                "[%s] Test size: %d (anomaly rate: %.1f%%)",
+                dataset_name,
+                len(y_test),
+                100 * y_test.mean(),
+            )
+
+            # CDADE blended scores
+            blended_path = results_dir / "selection" / dataset_name / "blended_scores.csv"
+            blended_df = load_blended_scores(blended_path, len(y_true))
+            cdade_test = blended_df.values[-n_test:].max(axis=1)
+            if len(cdade_test) != len(y_test):
+                raise ValueError(
+                    f"[{dataset_name}] CDADE scores/labels shape mismatch: "
+                    f"{len(cdade_test)} vs {len(y_test)}."
+                )
+
+            # Baselines
+            baselines_dir = results_dir / "baselines" / dataset_name
+            baselines = load_baseline_scores(baselines_dir)
+
+            # Metrics
+            all_metrics = evaluate_all_methods(y_test, cdade_test, baselines, nab_window)
+
+            # Per-dataset outputs
+            metrics_out = results_dir / "metrics" / dataset_name / "metrics.json"
+            save_metrics_json(all_metrics, metrics_out)
+
+            eval_dir = results_dir / "evaluation" / dataset_name
+            logger.info("[%s] Writing per-method CSV files to %s", dataset_name, eval_dir)
+            save_per_method_csvs(all_metrics, eval_dir)
+
+            # MLflow nested run per dataset
+            with mlflow.start_run(run_name=dataset_name, nested=True):
+                mlflow.log_param("dataset", dataset_name)
+                mlflow.log_metric("n_test", len(y_test))
+                mlflow.log_metric("anomaly_rate_test", float(y_test.mean()))
+                for method, metrics in all_metrics.items():
+                    for key, value in metrics.items():
+                        mlflow.log_metric(f"{method}_{key}", value)
+                mlflow.log_artifact(str(metrics_out))
+
+            print(f"\n=== {dataset_name} Evaluation ===")
+            for method, metrics in all_metrics.items():
+                print(
+                    f"  {method}: AUC-PR={metrics['auc_pr']:.3f} "
+                    f"NAB={metrics['nab']:.3f}  F1={metrics['f1']:.3f}"
+                )
 
     logger.info("Evaluation complete")
-    print("\n=== Evaluation Complete ===")
-    for method, metrics in all_metrics.items():
-        auc_pr = metrics["auc_pr"]
-        nab = metrics["nab"]
-        f1 = metrics["f1"]
-        print(f"  {method}: AUC-PR={auc_pr:.3f}  NAB={nab:.3f}  F1={f1:.3f}")
-    print("===\n")
 
 
 if __name__ == "__main__":

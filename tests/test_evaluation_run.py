@@ -64,7 +64,7 @@ class TestLoadDataRaisesIfMissing:
         from cdade.evaluation.run_evaluate import load_ground_truth
 
         with pytest.raises(FileNotFoundError, match="sivep_counts_mask.parquet"):
-            load_ground_truth(tmp_project_root / "data" / "injected")
+            load_ground_truth(tmp_project_root / "data" / "injected" / "sivep_counts_mask.parquet")
 
 
 class TestCDADEScoresAlignment:
@@ -74,12 +74,13 @@ class TestCDADEScoresAlignment:
         """When blended_scores has wrong number of rows, should raise ValueError."""
         from cdade.evaluation.run_evaluate import load_blended_scores, load_ground_truth
 
-        y_true = load_ground_truth(tmp_project_root / "data" / "injected")
+        y_true = load_ground_truth(synthetic_mask_data)
 
         # Create a blended_scores with wrong number of rows
         bad_scores = np.random.uniform(0, 1, (100, 13))  # 100 instead of 132
         bad_df = pd.DataFrame(bad_scores, columns=[f"detector_{i}" for i in range(13)])
         blended_path = tmp_project_root / "results" / "selection" / "blended_scores.csv"
+        blended_path.parent.mkdir(parents=True, exist_ok=True)
         bad_df.to_csv(blended_path, index=False)
 
         with pytest.raises(ValueError, match="shape mismatch|length"):
@@ -104,7 +105,7 @@ class TestMetricsJSONStructure:
             load_ground_truth,
         )
 
-        y_true = load_ground_truth(tmp_project_root / "data" / "injected")
+        y_true = load_ground_truth(synthetic_mask_data)
         blended_df = load_blended_scores(synthetic_blended_scores, len(y_true))
         baselines = load_baseline_scores(tmp_project_root / "results" / "baselines")
 
@@ -146,7 +147,7 @@ class TestEvaluationOutputDirCreated:
         )
 
         # Load data
-        y_true = load_ground_truth(tmp_project_root / "data" / "injected")
+        y_true = load_ground_truth(synthetic_mask_data)
         blended_df = load_blended_scores(synthetic_blended_scores, len(y_true))
         baselines = load_baseline_scores(tmp_project_root / "results" / "baselines")
 
@@ -194,7 +195,7 @@ class TestMetricsJSONOutput:
         )
 
         # Load and evaluate
-        y_true = load_ground_truth(tmp_project_root / "data" / "injected")
+        y_true = load_ground_truth(synthetic_mask_data)
         blended_df = load_blended_scores(synthetic_blended_scores, len(y_true))
         baselines = load_baseline_scores(tmp_project_root / "results" / "baselines")
 
@@ -218,3 +219,65 @@ class TestMetricsJSONOutput:
         for _method, metrics in loaded.items():
             assert isinstance(metrics, dict)
             assert "auc_pr" in metrics
+
+
+class TestMultiDatasetEvaluate:
+    """Test that run_evaluate writes per-dataset metrics under results/metrics/{dataset}/."""
+
+    def test_metrics_written_to_namespaced_paths(self, tmp_path):
+        """When main() is called, metrics should be written to results/metrics/{dataset}/."""
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock, patch
+
+        from cdade.evaluation import run_evaluate
+
+        # Build minimal sivep data
+        n = 50
+        mask = pd.DataFrame(np.zeros((n, 3), dtype=bool))
+        mask.iloc[40:45, 0] = True
+        (tmp_path / "data" / "injected").mkdir(parents=True)
+        mask.to_parquet(tmp_path / "data" / "injected" / "sivep_counts_mask.parquet")
+
+        # Build selection outputs
+        sel_dir = tmp_path / "results" / "selection" / "sivep"
+        sel_dir.mkdir(parents=True)
+        scores_df = pd.DataFrame(
+            np.random.default_rng(0).uniform(0, 1, (n, 2)),
+            columns=["detector_0", "detector_1"],
+        )
+        scores_df.to_csv(sel_dir / "blended_scores.csv", index=False)
+
+        # Build baseline scores
+        base_dir = tmp_path / "results" / "baselines" / "sivep"
+        base_dir.mkdir(parents=True)
+        n_test = int(n * 0.2)
+        for i in range(1, 6):
+            np.save(
+                base_dir / f"b{i}_scores.npy",
+                np.random.default_rng(i).uniform(0, 1, n_test),
+            )
+
+        cfg = SimpleNamespace(
+            datasets=SimpleNamespace(active=["sivep"]),
+            evaluation=SimpleNamespace(test_frac=0.2, nab_window=4),
+            experiment=SimpleNamespace(mlflow_tracking_uri="sqlite:///test.db"),
+        )
+
+        with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
+            "mlflow.start_run",
+            return_value=MagicMock(
+                __enter__=MagicMock(return_value=MagicMock()),
+                __exit__=MagicMock(return_value=False),
+            ),
+        ):
+            monkeypatch_path = patch.object(run_evaluate, "_PROJECT_ROOT", tmp_path)
+            monkeypatch_path.start()
+            run_evaluate.main.__wrapped__(cfg)
+            monkeypatch_path.stop()
+
+        metrics_file = tmp_path / "results" / "metrics" / "sivep" / "metrics.json"
+        assert metrics_file.exists(), f"Expected {metrics_file}"
+        with open(metrics_file) as f:
+            metrics = json.load(f)
+        assert "cdade" in metrics
+        assert "auc_pr" in metrics["cdade"]
