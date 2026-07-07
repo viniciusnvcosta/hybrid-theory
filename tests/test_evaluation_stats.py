@@ -511,7 +511,7 @@ class TestMultiDatasetMatrixConstruction:
 
     def test_auc_pr_matrix_has_two_rows(self, tmp_path):
         """With metrics for sivep and tycho, matrix shape is (2, n_methods)."""
-        from cdade.evaluation.stats import _build_auc_pr_matrix_from_dir
+        from cdade.evaluation.stats_matrix import _build_auc_pr_matrix_from_dir
 
         metrics_dir = tmp_path / "results" / "metrics"
         for ds in ["sivep", "tycho"]:
@@ -544,7 +544,7 @@ class TestMultiDatasetMatrixConstruction:
 
     def test_single_dataset_returns_one_row(self, tmp_path):
         """With only one dataset, matrix shape is (1, n_methods)."""
-        from cdade.evaluation.stats import _build_auc_pr_matrix_from_dir
+        from cdade.evaluation.stats_matrix import _build_auc_pr_matrix_from_dir
 
         metrics_dir = tmp_path / "results" / "metrics"
         ds_dir = metrics_dir / "sivep"
