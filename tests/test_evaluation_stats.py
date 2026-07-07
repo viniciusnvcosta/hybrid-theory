@@ -499,3 +499,69 @@ class TestStatsOutputFiles:
         assert "ci_upper" in cliffs_result["b1"]
         assert "magnitude" in cliffs_result["b1"]
         assert -1 <= cliffs_result["b1"]["delta"] <= 1
+
+
+# ============================================================================
+# Multi-Dataset Matrix Construction Tests
+# ============================================================================
+
+
+class TestMultiDatasetMatrixConstruction:
+    """Test that the stats entry-point builds the AUC-PR matrix from multiple metrics files."""
+
+    def test_auc_pr_matrix_has_two_rows(self, tmp_path):
+        """With metrics for sivep and tycho, matrix shape is (2, n_methods)."""
+        from cdade.evaluation.stats import _build_auc_pr_matrix_from_dir
+
+        metrics_dir = tmp_path / "results" / "metrics"
+        for ds in ["sivep", "tycho"]:
+            ds_dir = metrics_dir / ds
+            ds_dir.mkdir(parents=True)
+            m = {
+                "cdade": {
+                    "auc_pr": 0.9,
+                    "nab": 0.8,
+                    "f1": 0.85,
+                    "precision": 0.9,
+                    "recall": 0.8,
+                    "threshold": 0.5,
+                },
+                "b1": {
+                    "auc_pr": 0.6,
+                    "nab": 0.5,
+                    "f1": 0.55,
+                    "precision": 0.6,
+                    "recall": 0.5,
+                    "threshold": 0.5,
+                },
+            }
+            (ds_dir / "metrics.json").write_text(json.dumps(m))
+
+        matrix, method_names, dataset_names = _build_auc_pr_matrix_from_dir(metrics_dir)
+        assert matrix.shape == (2, 2)
+        assert set(method_names) == {"cdade", "b1"}
+        assert set(dataset_names) == {"sivep", "tycho"}
+
+    def test_single_dataset_returns_one_row(self, tmp_path):
+        """With only one dataset, matrix shape is (1, n_methods)."""
+        from cdade.evaluation.stats import _build_auc_pr_matrix_from_dir
+
+        metrics_dir = tmp_path / "results" / "metrics"
+        ds_dir = metrics_dir / "sivep"
+        ds_dir.mkdir(parents=True)
+        m = {
+            "cdade": {
+                "auc_pr": 0.9,
+                "nab": 0.8,
+                "f1": 0.85,
+                "precision": 0.9,
+                "recall": 0.8,
+                "threshold": 0.5,
+            }
+        }
+        (ds_dir / "metrics.json").write_text(json.dumps(m))
+
+        matrix, method_names, dataset_names = _build_auc_pr_matrix_from_dir(metrics_dir)
+        assert matrix.shape == (1, 1)
+        assert set(method_names) == {"cdade"}
+        assert set(dataset_names) == {"sivep"}

@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from cdade.evaluation.stats_matrix import _build_auc_pr_matrix_from_dir
+
 logger = logging.getLogger(__name__)
 
 
@@ -342,6 +344,33 @@ def run_stats_pipeline(
     }
 
 
+def _load_scores_for_dataset(dataset_name: str, n_test: int = 26) -> tuple:
+    """Load raw scores (y_true, cdade_scores, baseline_scores) for a dataset.
+
+    Args:
+        dataset_name: Name of the dataset (e.g., "sivep", "tycho").
+        n_test: Number of test samples (default 26).
+
+    Returns:
+        Tuple of (y_true, cdade_scores, baseline_scores).
+    """
+    y_true = cdade_scores = baseline_scores = None
+    try:
+        mask_path = Path(f"data/injected/{dataset_name}_counts_mask.parquet")
+        if mask_path.exists():
+            y_true = pd.read_parquet(mask_path).max(axis=1).values[-n_test:]
+        blended_path = Path(f"results/selection/{dataset_name}/blended_scores.csv")
+        if blended_path.exists():
+            cdade_scores = pd.read_csv(blended_path, index_col=0).iloc[-n_test:].max(axis=1).values
+        baseline_dir = Path(f"results/baselines/{dataset_name}")
+        b_paths = sorted(baseline_dir.glob("b[1-5]_scores.npy"))
+        if b_paths:
+            baseline_scores = {p.stem.replace("_scores", ""): np.load(p)[-n_test:] for p in b_paths}
+    except Exception as e:
+        logger.warning("Could not load scores for %s: %s", dataset_name, e)
+    return y_true, cdade_scores, baseline_scores
+
+
 if __name__ == "__main__":
     import hydra
     from omegaconf import DictConfig
@@ -353,48 +382,40 @@ if __name__ == "__main__":
     )
     def main(cfg: DictConfig):
         """Main entry-point for DVC pipeline."""
-        import json
-
-        metrics_path = Path(cfg.evaluation.metrics_path)
-        output_dir = Path(cfg.evaluation.stats_dir)
-
-        with open(metrics_path) as f:
-            metrics = json.load(f)
-
-        y_true = None
-        cdade_scores = None
-        baseline_scores = None
-
-        try:
-            mask_path = Path("data/injected/sivep_counts_mask.parquet")
-            if mask_path.exists():
-                mask_df = pd.read_parquet(mask_path)
-                y_true = mask_df.max(axis=1).values[-26:]
-
-            blended_path = Path("results/selection/blended_scores.csv")
-            if blended_path.exists():
-                blended_df = pd.read_csv(blended_path, index_col=0)
-                cdade_scores = blended_df.iloc[-26:].max(axis=1).values
-
-            import glob
-
-            b_paths = sorted(glob.glob("results/baselines/b[1-5]_scores.npy"))
-            if b_paths:
-                baseline_scores = {}
-                for b_path in b_paths:
-                    b_name = Path(b_path).stem.replace("_scores", "")
-                    baseline_scores[b_name] = np.load(b_path)[-26:]
-        except Exception as e:
-            logger.warning(f"Could not load raw scores: {e}")
-
-        run_stats_pipeline(
-            metrics,
-            alpha=0.05,
-            bootstrap_n=1000,
-            output_dir=output_dir,
-            y_true=y_true,
-            cdade_scores=cdade_scores,
-            baseline_scores=baseline_scores,
-        )
+        mpath = Path(cfg.evaluation.metrics_path)
+        odir = Path(cfg.evaluation.stats_dir)
+        if mpath.is_dir():
+            mat, _, dsets = _build_auc_pr_matrix_from_dir(mpath)
+            logger.info("Loaded AUC-PR matrix: shape %s", mat.shape)
+            primary = dsets[0]
+            test_frac = getattr(getattr(cfg, "evaluation", None), "test_frac", 0.2)
+            mask = Path(f"data/injected/{primary}_counts_mask.parquet")
+            n_test = int(len(pd.read_parquet(mask)) * test_frac) if mask.exists() else 26
+            y_t, c_s, b_s = _load_scores_for_dataset(primary, n_test)
+            with open(mpath / primary / "metrics.json") as f:
+                prim_m = json.load(f)
+            run_stats_pipeline(
+                prim_m,
+                alpha=0.05,
+                bootstrap_n=1000,
+                output_dir=odir,
+                y_true=y_t,
+                cdade_scores=c_s,
+                baseline_scores=b_s,
+                auc_pr_matrix=mat,
+            )
+        else:
+            with open(mpath) as f:
+                metrics = json.load(f)
+            y_t, c_s, b_s = _load_scores_for_dataset("sivep", 26)
+            run_stats_pipeline(
+                metrics,
+                alpha=0.05,
+                bootstrap_n=1000,
+                output_dir=odir,
+                y_true=y_t,
+                cdade_scores=c_s,
+                baseline_scores=b_s,
+            )
 
     main()
