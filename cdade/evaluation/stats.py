@@ -244,6 +244,7 @@ def run_stats_pipeline(
         ranks_matrix = np.apply_along_axis(lambda r: rankdata(-r), 1, auc_pr_values)
         stat, p_value = friedman_test(ranks_matrix, alpha=alpha)
         friedman_result = {
+            "skipped": False,
             "stat": float(stat),
             "p_value": float(p_value),
             "significant": p_value < alpha,
@@ -344,16 +345,10 @@ def run_stats_pipeline(
     }
 
 
-def _load_scores_for_dataset(dataset_name: str, n_test: int = 26) -> tuple:
-    """Load raw scores (y_true, cdade_scores, baseline_scores) for a dataset.
-
-    Args:
-        dataset_name: Name of the dataset (e.g., "sivep", "tycho").
-        n_test: Number of test samples (default 26).
-
-    Returns:
-        Tuple of (y_true, cdade_scores, baseline_scores).
-    """
+def _load_scores_for_dataset(
+    dataset_name: str, n_test: int = 26
+) -> tuple[np.ndarray | None, np.ndarray | None, dict[str, np.ndarray] | None]:
+    """Load raw scores (y_true, cdade_scores, baseline_scores) for a dataset."""
     y_true = cdade_scores = baseline_scores = None
     try:
         mask_path = Path(f"data/injected/{dataset_name}_counts_mask.parquet")
@@ -371,6 +366,33 @@ def _load_scores_for_dataset(dataset_name: str, n_test: int = 26) -> tuple:
     return y_true, cdade_scores, baseline_scores
 
 
+def _run_pipeline_multi_dataset(metrics_path: Path, output_dir: Path, cfg: DictConfig) -> None:
+    """Run pipeline with multi-dataset matrix."""
+    auc_pr_matrix, _, dataset_names = _build_auc_pr_matrix_from_dir(metrics_path)
+    logger.info("Loaded AUC-PR matrix: shape %s", auc_pr_matrix.shape)
+    primary = dataset_names[0]
+    mask_path = Path(f"data/injected/{primary}_counts_mask.parquet")
+    try:
+        test_frac = getattr(getattr(cfg, "evaluation", None), "test_frac", 0.2)
+        n_test = int(len(pd.read_parquet(mask_path)) * test_frac) if mask_path.exists() else 26
+    except Exception as e:
+        logger.warning("Failed to load mask from %s: %s, falling back to 26", mask_path, e)
+        n_test = 26
+    y_true, cdade_scores, baseline_scores = _load_scores_for_dataset(primary, n_test)
+    with open(metrics_path / primary / "metrics.json") as f:
+        primary_metrics = json.load(f)
+    run_stats_pipeline(
+        primary_metrics,
+        alpha=0.05,
+        bootstrap_n=1000,
+        output_dir=output_dir,
+        y_true=y_true,
+        cdade_scores=cdade_scores,
+        baseline_scores=baseline_scores,
+        auc_pr_matrix=auc_pr_matrix,
+    )
+
+
 if __name__ == "__main__":
     import hydra
     from omegaconf import DictConfig
@@ -382,40 +404,22 @@ if __name__ == "__main__":
     )
     def main(cfg: DictConfig):
         """Main entry-point for DVC pipeline."""
-        mpath = Path(cfg.evaluation.metrics_path)
-        odir = Path(cfg.evaluation.stats_dir)
-        if mpath.is_dir():
-            mat, _, dsets = _build_auc_pr_matrix_from_dir(mpath)
-            logger.info("Loaded AUC-PR matrix: shape %s", mat.shape)
-            primary = dsets[0]
-            test_frac = getattr(getattr(cfg, "evaluation", None), "test_frac", 0.2)
-            mask = Path(f"data/injected/{primary}_counts_mask.parquet")
-            n_test = int(len(pd.read_parquet(mask)) * test_frac) if mask.exists() else 26
-            y_t, c_s, b_s = _load_scores_for_dataset(primary, n_test)
-            with open(mpath / primary / "metrics.json") as f:
-                prim_m = json.load(f)
-            run_stats_pipeline(
-                prim_m,
-                alpha=0.05,
-                bootstrap_n=1000,
-                output_dir=odir,
-                y_true=y_t,
-                cdade_scores=c_s,
-                baseline_scores=b_s,
-                auc_pr_matrix=mat,
-            )
+        metrics_path = Path(cfg.evaluation.metrics_path)
+        output_dir = Path(cfg.evaluation.stats_dir)
+        if metrics_path.is_dir():
+            _run_pipeline_multi_dataset(metrics_path, output_dir, cfg)
         else:
-            with open(mpath) as f:
+            with open(metrics_path) as f:
                 metrics = json.load(f)
-            y_t, c_s, b_s = _load_scores_for_dataset("sivep", 26)
+            y_true, cdade_scores, baseline_scores = _load_scores_for_dataset("sivep", 26)
             run_stats_pipeline(
                 metrics,
                 alpha=0.05,
                 bootstrap_n=1000,
-                output_dir=odir,
-                y_true=y_t,
-                cdade_scores=c_s,
-                baseline_scores=b_s,
+                output_dir=output_dir,
+                y_true=y_true,
+                cdade_scores=cdade_scores,
+                baseline_scores=baseline_scores,
             )
 
     main()
