@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 from omegaconf import DictConfig
 
-from cdade.data.dataset_paths import get_dataset_artifact_paths
 from cdade.evaluation.metrics import compute_all_metrics
 
 logger = logging.getLogger(__name__)
@@ -22,32 +21,6 @@ logger = logging.getLogger(__name__)
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _INJECTED_DIR = _PROJECT_ROOT / "data" / "injected"
 _RESULTS_DIR = _PROJECT_ROOT / "results"
-
-
-def load_variant_ground_truth(cfg: DictConfig, injected_dir: Path) -> np.ndarray:
-    """Load binary anomaly mask and aggregate to time-series labels.
-
-    Args:
-        injected_dir: Path to injected data directory.
-
-    Returns:
-        1D numpy array of shape [n_timesteps] with binary labels.
-
-    Raises:
-        FileNotFoundError: If mask file not found.
-    """
-    artifact_paths = get_dataset_artifact_paths(cfg, project_root=_PROJECT_ROOT)
-    mask_path = artifact_paths["mask"]
-
-    if not mask_path.exists():
-        raise FileNotFoundError(
-            f"Ground truth mask not found at {mask_path}. "
-            "Run `just data` or `uv run dvc repro inject` first."
-        )
-
-    mask_df = pd.read_parquet(mask_path)
-    y_true = mask_df.values.astype(int).max(axis=1)
-    return y_true
 
 
 def load_variant_blended_scores(blended_path: Path, n_expected: int) -> np.ndarray:
